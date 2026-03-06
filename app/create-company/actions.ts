@@ -1,0 +1,65 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { supabaseServer } from "@/lib/supabase/server";
+
+const ENTITY_TYPES = ["principal", "agency", "service_provider"] as const;
+type EntityType = (typeof ENTITY_TYPES)[number];
+
+export async function createCompanyAction(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const entity_type = String(formData.get("entity_type") ?? "").trim() as EntityType;
+
+  if (!name) throw new Error("Company name is required.");
+  if (!ENTITY_TYPES.includes(entity_type)) throw new Error("Invalid entity type.");
+
+  const supabase = await supabaseServer();
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser();
+  if (userErr) throw new Error(userErr.message);
+
+  const user = userData.user;
+  if (!user) redirect("/auth");
+
+  // 1) Create company
+  const { data: company, error: companyError } = await supabase
+    .from("companies")
+    .insert({
+      name,
+      entity_type,
+      created_by: user.id, // keep explicit; matches RLS check (auth.uid() = created_by)
+    })
+    .select("id")
+    .single();
+
+  if (companyError) throw new Error(companyError.message);
+  if (!company?.id) throw new Error("Company creation failed (no ID returned).");
+
+  // 2) Create membership (owner + active)
+  const { error: membershipError } = await supabase.from("memberships").insert({
+    user_id: user.id,
+    company_id: company.id,
+    role: "owner",
+    is_active: true,
+  });
+
+  if (membershipError) throw new Error(membershipError.message);
+
+  // 3) Persist active company selection
+  const { error: settingsError } = await supabase.from("user_settings").upsert(
+    {
+      user_id: user.id,
+      active_company_id: company.id,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (settingsError) throw new Error(settingsError.message);
+
+  revalidatePath("/app");
+  revalidatePath("/home");
+
+  redirect("/home");
+}
