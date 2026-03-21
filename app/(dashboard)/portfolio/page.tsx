@@ -49,9 +49,9 @@ export default async function PortfolioPage() {
     redirect("/auth");
   }
 
-  const activeCompanyId = await getActiveCompanyId(user.id);
+  const companyRecord = await getActiveCompanyRecord(user.id);
 
-  if (!activeCompanyId) {
+  if (!companyRecord) {
     return (
       <main className="mx-auto max-w-6xl">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Portfolio</h1>
@@ -74,7 +74,7 @@ export default async function PortfolioPage() {
     );
   }
 
-  const companyRecord = await getActiveCompanyRecord(user.id);
+  const activeCompanyId = companyRecord.id;
 
   const [
     assetsCountRes,
