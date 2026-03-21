@@ -109,9 +109,9 @@ export default async function AssetsPage() {
 
   if (membershipsError) {
     return (
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-semibold">Assets</h1>
-        <p className="mt-4 text-red-600">
+      <main className="mx-auto max-w-6xl px-6 py-6">
+        <h1 className="text-2xl font-semibold">Assets</h1>
+        <p className="mt-3 text-sm text-red-600">
           Failed to load memberships: {membershipsError.message}
         </p>
       </main>
@@ -131,18 +131,18 @@ export default async function AssetsPage() {
 
   if (companies.length === 0) {
     return (
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex items-center justify-between gap-4">
+      <main className="mx-auto max-w-6xl px-6 py-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">Assets</h1>
-            <p className="mt-2 text-sm text-gray-600">
+            <h1 className="text-2xl font-semibold">Assets</h1>
+            <p className="mt-1.5 text-sm text-gray-600">
               You need an active company before you can add assets.
             </p>
           </div>
 
           <Link
             href="/create-company"
-            className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex shrink-0 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
           >
             Create company
           </Link>
@@ -194,43 +194,43 @@ export default async function AssetsPage() {
     .order("created_at", { ascending: false });
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <main className="mx-auto max-w-6xl px-6 py-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold">Assets</h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <h1 className="text-2xl font-semibold tracking-tight">Assets</h1>
+          <p className="mt-1 text-sm leading-snug text-gray-600">
             Add and manage company assets for{" "}
             <span className="font-medium text-gray-900">{activeCompany.name}</span>.
           </p>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex shrink-0 gap-2">
           <Link
             href="/home"
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium text-gray-800"
           >
             Back to home
           </Link>
 
           <Link
             href="/assets/new"
-            className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+            className="rounded-lg bg-black px-3 py-2 text-xs font-medium text-white"
           >
             Add asset
           </Link>
         </div>
       </div>
 
-      <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+      <div className="mt-4 rounded-xl border border-gray-200 bg-white p-3">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Active company</h2>
-            <p className="text-sm text-gray-600">{activeCompany.name}</p>
+            <h2 className="text-sm font-semibold text-gray-900">Active company</h2>
+            <p className="text-xs text-gray-600">{activeCompany.name}</p>
           </div>
 
           <Link
             href="/companies"
-            className="text-sm font-medium text-gray-900 underline"
+            className="text-xs font-medium text-gray-900 underline"
           >
             Switch company
           </Link>
@@ -238,23 +238,23 @@ export default async function AssetsPage() {
       </div>
 
       {assetsError ? (
-        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
-          <p className="text-sm text-red-700">
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+          <p className="text-xs text-red-700">
             Failed to load assets: {assetsError.message}
           </p>
         </div>
       ) : null}
 
       {!assetsError && (!assets || assets.length === 0) ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
-          <h3 className="text-lg font-semibold text-gray-900">No assets yet</h3>
-          <p className="mt-2 text-sm text-gray-600">
+        <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <h3 className="text-base font-semibold text-gray-900">No assets yet</h3>
+          <p className="mt-1.5 text-sm leading-snug text-gray-600">
             Start by adding your first company asset, development site, or off-market opportunity.
           </p>
 
           <Link
             href="/assets/new"
-            className="mt-5 inline-flex rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+            className="mt-4 inline-flex rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
           >
             Add first asset
           </Link>
@@ -262,112 +262,95 @@ export default async function AssetsPage() {
       ) : null}
 
       {!assetsError && assets && assets.length > 0 ? (
-        <div className="mt-6 grid gap-4">
+        <div className="mt-4 flex flex-col gap-3">
           {(assets as AssetRow[]).map((asset) => {
             const sortedImages = [...(asset.asset_images ?? [])].sort(
               (a, b) => (a.position ?? 999) - (b.position ?? 999)
             );
             const primaryImage = sortedImages[0]?.image_url ?? null;
 
+            const building =
+              asset.building_area_sqm !== null ? `${asset.building_area_sqm} sqm` : "—";
+            const land = asset.land_area_sqm !== null ? `${asset.land_area_sqm} sqm` : "—";
+
             return (
               <Link
                 key={asset.id}
                 href={`/assets/${asset.id}`}
-                className="block focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="block rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
                 prefetch={false}
                 aria-label={`Open asset ${asset.title}`}
                 style={{ textDecoration: "none" }}
               >
-                <article className="cursor-pointer overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-                  <div className="flex flex-col md:flex-row">
-                    <div className="w-full bg-gray-100 md:w-72">
-                      {primaryImage ? (
-                        <img
-                          src={primaryImage}
-                          alt={asset.title}
-                          className="h-56 w-full object-cover md:h-full"
-                        />
-                      ) : (
-                        <div className="flex h-56 w-full items-center justify-center text-sm text-gray-500 md:h-full">
-                          No image uploaded
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 p-5">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                              {labelAssetType(asset.asset_type)}
-                            </span>
-                            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                              {labelListingType(asset.listing_type)}
-                            </span>
-
-                            {asset.is_public ? (
-                              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                                Public
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
-                                Private
-                              </span>
-                            )}
-
-                            {asset.open_for_offers ? (
-                              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                                Open for offers
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <h3 className="mt-4 text-xl font-semibold text-gray-900">
-                            {asset.title}
-                          </h3>
-
-                          <p className="mt-2 text-sm text-gray-600">
-                            {[asset.suburb, asset.state, asset.country]
-                              .filter(Boolean)
-                              .join(", ") || "Location not set"}
-                          </p>
-
-                          <p className="mt-3 text-base font-medium text-gray-900">
-                            {formatPrice(
-                              asset.price_min,
-                              asset.price_max,
-                              asset.price_display
-                            )}
-                          </p>
-
-                          <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-700">
-                            <span>
-                              Building area:{" "}
-                              <strong>
-                                {asset.building_area_sqm !== null
-                                  ? `${asset.building_area_sqm} sqm`
-                                  : "—"}
-                              </strong>
-                            </span>
-
-                            <span>
-                              Land area:{" "}
-                              <strong>
-                                {asset.land_area_sqm !== null
-                                  ? `${asset.land_area_sqm} sqm`
-                                  : "—"}
-                              </strong>
-                            </span>
-                          </div>
-
-                          {asset.description ? (
-                            <p className="mt-4 text-sm text-gray-700">
-                              {asset.description}
-                            </p>
-                          ) : null}
-                        </div>
+                <article className="flex cursor-pointer flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md md:flex-row md:items-start">
+                  <div className="h-40 w-full shrink-0 bg-gray-100 md:w-44 lg:w-48">
+                    {primaryImage ? (
+                      <img
+                        src={primaryImage}
+                        alt={asset.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">
+                        No image uploaded
                       </div>
+                    )}
+                  </div>
+
+                  <div className="flex min-w-0 flex-1 flex-col justify-center p-3 md:p-4">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-700">
+                        {labelAssetType(asset.asset_type)}
+                      </span>
+                      <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-700">
+                        {labelListingType(asset.listing_type)}
+                      </span>
+
+                      {asset.is_public ? (
+                        <span className="rounded-md bg-green-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-green-800">
+                          Public
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                          Private
+                        </span>
+                      )}
+
+                      {asset.open_for_offers ? (
+                        <span className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-800">
+                          Open for offers
+                        </span>
+                      ) : null}
                     </div>
+
+                    <h3 className="mt-2 text-base font-semibold leading-tight tracking-tight text-gray-900 md:text-lg">
+                      {asset.title}
+                    </h3>
+
+                    <p className="mt-1 text-xs leading-snug text-gray-600">
+                      {[asset.suburb, asset.state, asset.country].filter(Boolean).join(", ") ||
+                        "Location not set"}
+                    </p>
+
+                    <p className="mt-1.5 text-sm font-semibold leading-snug text-gray-900">
+                      {formatPrice(
+                        asset.price_min,
+                        asset.price_max,
+                        asset.price_display
+                      )}
+                    </p>
+
+                    <p className="mt-1.5 text-[11px] leading-snug text-gray-600">
+                      <span className="font-medium text-gray-800">Building</span> {building}
+                      <span className="mx-2 text-gray-300" aria-hidden>
+                        ·
+                      </span>
+                      <span className="font-medium text-gray-800">Land</span> {land}
+                    </p>
+
+                    {asset.description ? (
+                      <p className="mt-2 text-xs leading-snug text-gray-700">{asset.description}</p>
+                    ) : null}
                   </div>
                 </article>
               </Link>
