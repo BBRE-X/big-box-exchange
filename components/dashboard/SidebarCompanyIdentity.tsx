@@ -1,15 +1,12 @@
 import Link from "next/link";
+import { getActiveCompanyRecord } from "@/lib/app-context";
 
 type SidebarCompanyIdentityProps = {
-  signedIn: boolean;
-  company: { name: string; logoUrl: string | null } | null;
+  userId: string | null;
 };
 
-export function SidebarCompanyIdentity({
-  signedIn,
-  company,
-}: SidebarCompanyIdentityProps) {
-  if (!signedIn) {
+export async function SidebarCompanyIdentity({ userId }: SidebarCompanyIdentityProps) {
+  if (!userId) {
     return (
       <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
         <p className="text-[11px] font-medium text-white/50">Not signed in</p>
@@ -22,6 +19,8 @@ export function SidebarCompanyIdentity({
       </div>
     );
   }
+
+  const company = await getActiveCompanyRecord(userId);
 
   if (!company) {
     return (
@@ -49,10 +48,10 @@ export function SidebarCompanyIdentity({
 
   return (
     <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-      {company.logoUrl ? (
+      {company.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element -- remote company logo URL from storage
         <img
-          src={company.logoUrl}
+          src={company.logo_url}
           alt=""
           className="h-8 w-8 shrink-0 rounded-md object-cover"
         />

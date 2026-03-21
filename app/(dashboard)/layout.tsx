@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { supabaseServer } from "@/lib/supabase/server";
-import { getActiveCompanyRecord } from "@/lib/app-context";
 import { SidebarCompanyIdentity } from "@/components/dashboard/SidebarCompanyIdentity";
 import { DashboardNav } from "@/components/dashboard/DashboardNav";
 
@@ -16,15 +15,6 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     data: { user },
   } = await supabase.auth.getUser();
 
-  let sidebarCompany: { name: string; logoUrl: string | null } | null = null;
-
-  if (user) {
-    const record = await getActiveCompanyRecord(user.id);
-    if (record) {
-      sidebarCompany = { name: record.name, logoUrl: record.logo_url };
-    }
-  }
-
   return (
     <div className="min-h-screen bg-white text-gray-900">
       <div className="grid min-h-screen grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)]">
@@ -33,7 +23,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             <Link href="/home" className="text-base font-semibold tracking-tight text-white">
               Big Box Exchange
             </Link>
-            <SidebarCompanyIdentity signedIn={Boolean(user)} company={sidebarCompany} />
+            <SidebarCompanyIdentity userId={user?.id ?? null} />
           </div>
 
           <DashboardNav />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
-import { getActiveCompanyId, getActiveCompanyRecord } from "@/lib/app-context";
+import { getActiveCompanyRecord } from "@/lib/app-context";
 
 type AssetPreview = {
   id: string;
@@ -124,8 +124,8 @@ export default async function PortfolioPage() {
   const assetRows = (assetsPreviewRes.data ?? []) as AssetPreview[];
   const mandateRows = (mandatesPreviewRes.data ?? []) as MandatePreview[];
 
-  const companyName = companyRecord?.name ?? "Company";
-  const logoUrl = companyRecord?.logo_url ?? null;
+  const companyName = companyRecord.name;
+  const logoUrl = companyRecord.logo_url;
   const initial = companyName.trim().charAt(0).toUpperCase() || "?";
 
   return (
