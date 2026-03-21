@@ -1,6 +1,6 @@
 type MandateCardProps = {
   title: string;
-  assetType?: string | null;
+  asset_type?: string | null;
   location?: string | null;
   status?: string | null;
   description?: string | null;
@@ -8,7 +8,7 @@ type MandateCardProps = {
 
 export default function MandateCard({
   title,
-  assetType,
+  asset_type,
   location,
   status,
   description,
@@ -16,9 +16,9 @@ export default function MandateCard({
   return (
     <article className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-4 flex flex-wrap gap-2">
-        {assetType ? (
+        {asset_type ? (
           <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
-            {assetType}
+            {asset_type}
           </span>
         ) : null}
 
