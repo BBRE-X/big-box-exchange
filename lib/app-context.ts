@@ -1,5 +1,11 @@
 import { supabaseServer } from "@/lib/supabase/server";
 
+export type ActiveCompanyRecord = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+};
+
 export async function getActiveCompanyId(userId: string): Promise<string | null> {
   const supabase = await supabaseServer();
 
@@ -23,4 +29,27 @@ export async function getActiveCompanyId(userId: string): Promise<string | null>
     .maybeSingle();
 
   return (membership?.company_id as string) ?? null;
+}
+
+export async function getActiveCompanyRecord(
+  userId: string
+): Promise<ActiveCompanyRecord | null> {
+  const companyId = await getActiveCompanyId(userId);
+  if (!companyId) return null;
+
+  const supabase = await supabaseServer();
+
+  const { data, error } = await supabase
+    .from("companies")
+    .select("id, name, logo_url")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    id: data.id as string,
+    name: data.name as string,
+    logo_url: (data.logo_url as string | null) ?? null,
+  };
 }

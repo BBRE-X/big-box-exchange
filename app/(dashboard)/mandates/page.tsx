@@ -15,7 +15,16 @@ type MandateRow = {
   created_at: string;
 };
 
-export default async function MandatesPage() {
+type PageProps = {
+  searchParams?: Promise<{
+    error?: string;
+  }>;
+};
+
+export default async function MandatesPage({ searchParams }: PageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const pageError = resolvedSearchParams?.error;
+
   const supabase = await supabaseServer();
 
   const {
@@ -28,64 +37,80 @@ export default async function MandatesPage() {
 
   const activeCompanyId = await getActiveCompanyId(user.id);
 
-  let mandatesQuery = supabase
-    .from("mandates")
-    .select("id, company_id, title, asset_type, location, description, status, created_at")
-    .order("created_at", { ascending: false });
+  let mandates: MandateRow[] = [];
+  let loadError: string | null = null;
 
   if (activeCompanyId) {
-    mandatesQuery = mandatesQuery.eq("company_id", activeCompanyId);
+    const { data, error } = await supabase
+      .from("mandates")
+      .select("id, company_id, title, asset_type, location, description, status, created_at")
+      .eq("company_id", activeCompanyId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      loadError = error.message;
+    } else {
+      mandates = (data ?? []) as MandateRow[];
+    }
+  } else {
+    loadError = "No active company found.";
   }
 
-  const { data: mandates, error } = await mandatesQuery;
-
   return (
-    <main className="mx-auto max-w-7xl">
-      <div className="mb-8 flex items-start justify-between gap-4">
+    <main className="mx-auto max-w-6xl px-6 py-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight text-gray-900">
-            Mandates
-          </h1>
-          <p className="mt-2 text-lg text-gray-600">
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Mandates</h1>
+          <p className="mt-1 text-sm leading-snug text-gray-600">
             Manage acquisition mandates for your active company.
           </p>
         </div>
 
         <Link
           href="/mandates/new"
-          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+          className="inline-flex shrink-0 rounded-lg bg-black px-3 py-2 text-xs font-medium text-white"
         >
           New Mandate
         </Link>
       </div>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
-          <p className="text-sm text-red-700">Failed to load mandates: {error.message}</p>
+      {pageError ? (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          {pageError === "no-active-company"
+            ? "No active company found."
+            : decodeURIComponent(pageError)}
         </div>
       ) : null}
 
-      {!error && (!mandates || mandates.length === 0) ? (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-10 text-center">
-          <h3 className="text-lg font-semibold text-gray-900">No mandates yet</h3>
-          <p className="mt-2 text-sm text-gray-600">
-            Create your first mandate to start tracking acquisition requirements.
+      {loadError ? (
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          Failed to load mandates: {loadError}
+        </div>
+      ) : null}
+
+      {!loadError && mandates.length === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+          <h2 className="text-base font-semibold text-gray-900">No mandates yet</h2>
+          <p className="mt-1.5 text-sm leading-snug text-gray-600">
+            Create your first acquisition mandate to start building demand on the platform.
           </p>
-
-          <Link
-            href="/mandates/new"
-            className="mt-5 inline-flex rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
-          >
-            Create mandate
-          </Link>
+          <div className="mt-4">
+            <Link
+              href="/mandates/new"
+              className="inline-flex rounded-lg bg-black px-4 py-2 text-sm font-medium text-white"
+            >
+              Create mandate
+            </Link>
+          </div>
         </div>
       ) : null}
 
-      {!error && mandates && mandates.length > 0 ? (
-        <div className="grid gap-6">
-          {(mandates as MandateRow[]).map((mandate) => (
+      {mandates.length > 0 ? (
+        <div className="mt-4 flex flex-col gap-3">
+          {mandates.map((mandate) => (
             <MandateCard
               key={mandate.id}
+              id={mandate.id}
               title={mandate.title}
               asset_type={mandate.asset_type}
               location={mandate.location}
