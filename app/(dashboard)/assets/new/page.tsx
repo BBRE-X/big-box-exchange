@@ -36,7 +36,7 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
     redirect("/auth");
   }
 
-  let initialAsset: Record<string, unknown> | null = null;
+  let initialData: Record<string, unknown> | null = null;
 
   if (assetId) {
     const { data: asset } = await supabase
@@ -49,7 +49,13 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
       notFound();
     }
 
-    initialAsset = asset;
+    initialData = asset;
+  }
+
+  async function saveAssetAction(formData: FormData) {
+    "use server";
+
+    console.log("Asset form submitted", Object.fromEntries(formData.entries()));
   }
 
   return (
@@ -65,7 +71,7 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <NewAssetForm initialAsset={initialAsset} />
+      <NewAssetForm action={saveAssetAction} initialData={initialData} />
     </main>
   );
 }

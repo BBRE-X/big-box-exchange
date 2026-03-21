@@ -1,77 +1,45 @@
 type MandateCardProps = {
-  companyName: string
-  companyType?: string
-  dealIntent: string
-  assetTypes: string[]
-  searchAreas: string[]
-  budgetLabel: string
-  status?: string
-  postedLabel?: string
-}
+  title: string;
+  assetType?: string | null;
+  location?: string | null;
+  status?: string | null;
+  description?: string | null;
+};
 
 export default function MandateCard({
-  companyName,
-  companyType,
-  dealIntent,
-  assetTypes,
-  searchAreas,
-  budgetLabel,
-  status = "Active",
-  postedLabel = "Posted recently",
+  title,
+  assetType,
+  location,
+  status,
+  description,
 }: MandateCardProps) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white">
-              {dealIntent}
-            </span>
-            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-              {status}
-            </span>
-          </div>
+    <article className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="mb-4 flex flex-wrap gap-2">
+        {assetType ? (
+          <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700">
+            {assetType}
+          </span>
+        ) : null}
 
-          <h3 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
-            {companyName}
-          </h3>
-
-          {companyType ? (
-            <p className="mt-1 text-sm text-neutral-500">{companyType}</p>
-          ) : null}
-        </div>
-
-        <div className="text-sm text-neutral-500">{postedLabel}</div>
+        {status ? (
+          <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">
+            {status}
+          </span>
+        ) : null}
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            Asset Types
-          </div>
-          <div className="mt-2 text-sm font-semibold text-neutral-900">
-            {assetTypes.join(", ")}
-          </div>
-        </div>
+      <h3 className="text-2xl font-semibold tracking-tight text-gray-900">
+        {title}
+      </h3>
 
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            Search Areas
-          </div>
-          <div className="mt-2 text-sm font-semibold text-neutral-900">
-            {searchAreas.join(", ")}
-          </div>
-        </div>
+      {location ? (
+        <p className="mt-2 text-base text-gray-600">{location}</p>
+      ) : null}
 
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <div className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            Budget
-          </div>
-          <div className="mt-2 text-sm font-semibold text-neutral-900">
-            {budgetLabel}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+      {description ? (
+        <p className="mt-4 text-sm leading-6 text-gray-600">{description}</p>
+      ) : null}
+    </article>
+  );
 }

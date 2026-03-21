@@ -13,14 +13,13 @@ const navItems = [
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
-    <div className="min-h-screen bg-red-50">
+    <div className="min-h-screen bg-white text-gray-900">
       <div className="grid min-h-screen grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="border-r border-red-200 bg-black text-white">
+        <aside className="border-r border-gray-200 bg-[#111111] text-white">
           <div className="border-b border-white/10 px-6 py-6">
             <Link href="/home" className="text-lg font-semibold tracking-tight">
               Big Box Exchange
             </Link>
-            <p className="mt-2 text-xs text-white/70">Dashboard shell loaded</p>
           </div>
 
           <nav className="px-4 py-6">
@@ -40,9 +39,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </aside>
 
         <main className="min-w-0 bg-white">
-          <header className="border-b border-red-200 px-6 py-4">
-            <div className="text-sm font-medium text-red-600">
-              Dashboard layout active
+          <header className="border-b border-gray-200">
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="text-sm text-gray-500">Company dashboard</div>
             </div>
           </header>
 
