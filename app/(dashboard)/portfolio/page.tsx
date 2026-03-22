@@ -43,6 +43,40 @@ function niceMandateStatus(value: string | null) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/** Display only — mirrors v1 weights (40 + 35 + 15). */
+const MATCH_SCORE_MAX = 90;
+
+function matchScorePercent(score: number): number {
+  return Math.min(100, Math.round((score / MATCH_SCORE_MAX) * 100));
+}
+
+type MatchStrength = "strong" | "medium" | "light";
+
+function matchStrength(score: number): MatchStrength {
+  if (score >= 65) return "strong";
+  if (score >= 35) return "medium";
+  return "light";
+}
+
+function matchStrengthLabel(s: MatchStrength): string {
+  if (s === "strong") return "Strong";
+  if (s === "medium") return "Medium";
+  return "Light";
+}
+
+function displayMatchReason(reason: string): string {
+  switch (reason) {
+    case "Type match":
+      return "Same asset type";
+    case "Suburb match":
+      return "Suburb fits mandate location";
+    case "State match":
+      return "State fits mandate location";
+    default:
+      return reason;
+  }
+}
+
 const MATCHES_LIMIT = 12;
 
 export default async function PortfolioPage() {
@@ -222,51 +256,115 @@ export default async function PortfolioPage() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-xl border border-gray-200 bg-white shadow-sm" aria-label="Matches">
-        <div className="border-b border-gray-100 px-4 py-2.5">
-          <h3 className="text-sm font-semibold text-gray-900">Matches</h3>
-          <p className="mt-0.5 text-[11px] text-gray-500">
-            Heuristic links between your assets and mandates (type, suburb, state via location).
-          </p>
-        </div>
+      <section
+        className="mt-5 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+        aria-label="Matches"
+      >
+        <header className="border-b border-gray-100 bg-gradient-to-b from-gray-50/80 to-white px-3 py-2.5 sm:px-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                <h3 className="text-sm font-semibold tracking-tight text-gray-900">Matches</h3>
+                {matches.length > 0 ? (
+                  <span className="text-[10px] font-medium tabular-nums text-gray-400">
+                    Top {matches.length}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-0.5 max-w-2xl text-[11px] leading-snug text-gray-500">
+                Strongest internal pairings between your current assets and mandates, ranked by
+                overlapping type and location signals.
+              </p>
+            </div>
+          </div>
+        </header>
         {matches.length === 0 ? (
-          <div className="px-4 py-5 text-center">
-            <p className="text-xs font-medium text-gray-700">No strong matches identified yet.</p>
-            <p className="mt-1 text-[11px] text-gray-500">
-              Align asset type and location fields with mandate details to surface pairs here.
+          <div className="px-3 py-6 text-center sm:px-4 sm:py-7">
+            <p className="text-xs font-semibold tracking-tight text-gray-800">
+              No strong matches identified yet.
+            </p>
+            <p className="mx-auto mt-1.5 max-w-sm text-[11px] leading-relaxed text-gray-500">
+              Add or refine assets and mandates so types and locations line up — matches appear here
+              automatically.
             </p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {matches.map((m) => (
-              <li key={`${m.assetId}-${m.mandateId}`} className="px-4 py-2">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1 space-y-0.5">
-                    <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 text-[11px] leading-snug">
-                      <Link
-                        href={`/assets/${m.assetId}`}
-                        className="min-w-0 truncate font-medium text-gray-900 hover:underline"
+            {matches.map((m) => {
+              const strength = matchStrength(m.score);
+              const pct = matchScorePercent(m.score);
+              const barClass =
+                strength === "strong"
+                  ? "bg-gray-900"
+                  : strength === "medium"
+                    ? "bg-gray-600"
+                    : "bg-gray-400";
+              const badgeClass =
+                strength === "strong"
+                  ? "border-gray-900 bg-gray-900 text-white"
+                  : strength === "medium"
+                    ? "border-gray-300 bg-white text-gray-900"
+                    : "border-gray-200 bg-gray-50 text-gray-700";
+              return (
+                <li key={`${m.assetId}-${m.mandateId}`}>
+                  <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-stretch sm:gap-3 sm:px-4 sm:py-2.5">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                        Asset → Mandate
+                      </p>
+                      <div className="space-y-0.5">
+                        <Link
+                          href={`/assets/${m.assetId}`}
+                          className="block truncate text-sm font-semibold leading-tight text-gray-900 decoration-gray-300 underline-offset-2 hover:underline"
+                        >
+                          {m.assetTitle}
+                        </Link>
+                        <div className="flex items-center gap-1.5 pl-0.5">
+                          <span className="text-[10px] font-medium text-gray-300" aria-hidden>
+                            →
+                          </span>
+                          <Link
+                            href={`/mandates/${m.mandateId}`}
+                            className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-gray-700 decoration-gray-300 underline-offset-2 hover:underline"
+                          >
+                            {m.mandateTitle}
+                          </Link>
+                        </div>
+                      </div>
+                      <p className="text-[10px] leading-snug text-gray-500">
+                        <span className="font-medium text-gray-600">Signals · </span>
+                        {m.reasons.map(displayMatchReason).join(" · ")}
+                      </p>
+                      <div
+                        className="pt-0.5"
+                        role="presentation"
+                        aria-hidden
                       >
-                        {m.assetTitle}
-                      </Link>
-                      <span className="shrink-0 text-gray-400" aria-hidden>
-                        ·
-                      </span>
-                      <Link
-                        href={`/mandates/${m.mandateId}`}
-                        className="min-w-0 truncate font-medium text-gray-700 hover:underline"
-                      >
-                        {m.mandateTitle}
-                      </Link>
+                        <div className="h-0.5 overflow-hidden rounded-full bg-gray-100">
+                          <div
+                            className={`h-full rounded-full ${barClass}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p className="mt-0.5 text-[9px] tabular-nums text-gray-400">
+                          Fit vs max signals · {pct}%
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-gray-500">{m.reasons.join(" · ")}</p>
+                    <div className="flex shrink-0 flex-row items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-center sm:pt-5">
+                      <div
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 shadow-sm ${badgeClass}`}
+                      >
+                        <span className="text-[9px] font-semibold uppercase tracking-wide opacity-90">
+                          {matchStrengthLabel(strength)}
+                        </span>
+                        <span className="text-[11px] font-bold tabular-nums">{m.score}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="shrink-0 rounded-md bg-gray-900 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-white">
-                    {m.score}
-                  </span>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
