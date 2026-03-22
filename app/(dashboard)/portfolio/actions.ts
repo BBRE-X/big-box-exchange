@@ -33,7 +33,7 @@ export async function createDealRoomFromPortfolio(formData: FormData) {
 
   const companyId = companyRecord.id;
 
-  const [{ data: assetRow }, { data: mandateRow }] = await Promise.all([
+  const [assetRes, mandateRes] = await Promise.all([
     supabase
       .from("assets")
       .select("id")
@@ -48,7 +48,7 @@ export async function createDealRoomFromPortfolio(formData: FormData) {
       .maybeSingle(),
   ]);
 
-  if (!assetRow || !mandateRow) {
+  if (assetRes.error || mandateRes.error || !assetRes.data || !mandateRes.data) {
     redirect("/portfolio");
   }
 
@@ -64,7 +64,7 @@ export async function createDealRoomFromPortfolio(formData: FormData) {
     redirect(`/deal-rooms/${existing.id}`);
   }
 
-  const { data: inserted, error } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from("deal_rooms")
     .insert({
       company_id: companyId,
@@ -74,7 +74,7 @@ export async function createDealRoomFromPortfolio(formData: FormData) {
     .select("id")
     .single();
 
-  if (error || !inserted?.id) {
+  if (insertError || !inserted?.id) {
     redirect("/portfolio");
   }
 

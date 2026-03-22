@@ -113,33 +113,36 @@ export default async function DealRoomDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const typedRoom = room as DealRoomRow;
+  const dealRoom = room as DealRoomRow;
 
   const [assetRes, mandateRes] = await Promise.all([
     supabase
       .from("assets")
       .select("id, title, asset_type, listing_type, suburb, state, is_public, company_id")
-      .eq("id", typedRoom.asset_id)
+      .eq("id", dealRoom.asset_id)
       .eq("company_id", companyId)
       .maybeSingle(),
     supabase
       .from("mandates")
       .select("id, title, asset_type, location, status, description, company_id")
-      .eq("id", typedRoom.mandate_id)
+      .eq("id", dealRoom.mandate_id)
       .eq("company_id", companyId)
       .maybeSingle(),
   ]);
 
-  const asset = assetRes.data as DealAssetRow | null;
-  const mandate = mandateRes.data as DealMandateRow | null;
+  const asset = !assetRes.error && assetRes.data ? (assetRes.data as DealAssetRow) : null;
+  const mandate = !mandateRes.error && mandateRes.data ? (mandateRes.data as DealMandateRow) : null;
 
-  if (!asset || !mandate) {
-    notFound();
-  }
+  const assetLoadFailed = Boolean(assetRes.error);
+  const mandateLoadFailed = Boolean(mandateRes.error);
+  const assetMissing = !asset;
+  const mandateMissing = !mandate;
+  const anySideMissing = assetMissing || mandateMissing;
 
-  const assetLocation =
-    [asset.suburb, asset.state].filter(Boolean).join(", ") || "Location not set";
-  const mandateLocation = mandate.location?.trim() || "—";
+  const assetLocation = asset
+    ? [asset.suburb, asset.state].filter(Boolean).join(", ") || "Location not set"
+    : null;
+  const mandateLocation = mandate ? mandate.location?.trim() || "—" : null;
 
   return (
     <main className="mx-auto max-w-6xl">
@@ -155,77 +158,140 @@ export default async function DealRoomDetailPage({ params }: PageProps) {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900">Deal room</h1>
           <p className="mt-1 max-w-2xl text-sm leading-snug text-gray-600">
             Internal workspace for this asset and mandate pair under {companyRecord.name}. Opened{" "}
-            {formatRoomDate(typedRoom.created_at)}.
+            {formatRoomDate(dealRoom.created_at)}.
+            {anySideMissing ? (
+              <>
+                {" "}
+                <span className="text-gray-700">
+                  One or both linked records are unavailable — details below.
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Asset</h2>
-            <Link
-              href={`/assets/${asset.id}`}
-              className="shrink-0 text-[11px] font-medium text-gray-700 hover:text-gray-900"
-            >
-              View listing
-            </Link>
-          </div>
-          <h3 className="mt-3 text-base font-semibold leading-snug text-gray-900">{asset.title}</h3>
-          <p className="mt-1 text-xs text-gray-500">{assetLocation}</p>
-          <dl className="mt-3 space-y-2 text-xs">
-            <div className="flex justify-between gap-3">
-              <dt className="text-gray-500">Type</dt>
-              <dd className="font-medium text-gray-900">{labelAssetType(asset.asset_type)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-gray-500">Listing</dt>
-              <dd className="font-medium text-gray-900">{labelListingType(asset.listing_type)}</dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-gray-500">Visibility</dt>
-              <dd className="font-medium text-gray-900">{asset.is_public ? "Public" : "Private"}</dd>
-            </div>
-          </dl>
-        </section>
+      {anySideMissing ? (
+        <div
+          className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-2.5 sm:px-4"
+          role="status"
+        >
+          <p className="text-[11px] font-semibold text-amber-950">Linked record notice</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-amber-900/85">
+            {assetLoadFailed || mandateLoadFailed
+              ? "We could not load every linked record. If this persists, try again or open the asset or mandate from the main lists."
+              : "A listing or mandate may have been removed or is outside your active company. The deal room stays open for your records."}
+          </p>
+        </div>
+      ) : null}
 
-        <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mandate</h2>
-            <Link
-              href={`/mandates/${mandate.id}`}
-              className="shrink-0 text-[11px] font-medium text-gray-700 hover:text-gray-900"
-            >
-              View mandate
-            </Link>
-          </div>
-          <h3 className="mt-3 text-base font-semibold leading-snug text-gray-900">{mandate.title}</h3>
-          <p className="mt-1 text-xs text-gray-500">{mandateLocation}</p>
-          <dl className="mt-3 space-y-2 text-xs">
-            <div className="flex justify-between gap-3">
-              <dt className="text-gray-500">Status</dt>
-              <dd className="font-medium text-gray-900">{niceMandateStatus(mandate.status)}</dd>
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        {asset ? (
+          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Asset</h2>
+              <Link
+                href={`/assets/${asset.id}`}
+                className="shrink-0 text-[11px] font-medium text-gray-700 hover:text-gray-900"
+              >
+                View listing
+              </Link>
             </div>
-            {mandate.asset_type ? (
+            <h3 className="mt-3 text-base font-semibold leading-snug text-gray-900">{asset.title}</h3>
+            <p className="mt-1 text-xs text-gray-500">{assetLocation}</p>
+            <dl className="mt-3 space-y-2 text-xs">
               <div className="flex justify-between gap-3">
-                <dt className="text-gray-500">Target type</dt>
-                <dd className="font-medium text-gray-900">{mandate.asset_type}</dd>
+                <dt className="text-gray-500">Type</dt>
+                <dd className="font-medium text-gray-900">{labelAssetType(asset.asset_type)}</dd>
               </div>
-            ) : null}
-          </dl>
-          {mandate.description?.trim() ? (
-            <p className="mt-3 border-t border-gray-100 pt-3 text-xs leading-relaxed text-gray-600">
-              {mandate.description.trim()}
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">Listing</dt>
+                <dd className="font-medium text-gray-900">{labelListingType(asset.listing_type)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">Visibility</dt>
+                <dd className="font-medium text-gray-900">{asset.is_public ? "Public" : "Private"}</dd>
+              </div>
+            </dl>
+          </section>
+        ) : (
+          <section className="rounded-xl border border-dashed border-gray-200 bg-gray-50/70 p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Asset</h2>
+            </div>
+            <p className="mt-3 text-sm font-medium text-gray-900">Listing unavailable</p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              The asset linked to this deal room is not visible for {companyRecord.name}. It may have
+              been deleted, archived, or moved to another company.
             </p>
-          ) : null}
-        </section>
+            <p className="mt-2 break-all font-mono text-[10px] text-gray-400">{dealRoom.asset_id}</p>
+            <Link
+              href="/assets"
+              className="mt-3 inline-flex text-[11px] font-medium text-gray-800 underline-offset-2 hover:underline"
+            >
+              Browse assets
+            </Link>
+          </section>
+        )}
+
+        {mandate ? (
+          <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mandate</h2>
+              <Link
+                href={`/mandates/${mandate.id}`}
+                className="shrink-0 text-[11px] font-medium text-gray-700 hover:text-gray-900"
+              >
+                View mandate
+              </Link>
+            </div>
+            <h3 className="mt-3 text-base font-semibold leading-snug text-gray-900">{mandate.title}</h3>
+            <p className="mt-1 text-xs text-gray-500">{mandateLocation}</p>
+            <dl className="mt-3 space-y-2 text-xs">
+              <div className="flex justify-between gap-3">
+                <dt className="text-gray-500">Status</dt>
+                <dd className="font-medium text-gray-900">{niceMandateStatus(mandate.status)}</dd>
+              </div>
+              {mandate.asset_type ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-gray-500">Target type</dt>
+                  <dd className="font-medium text-gray-900">{mandate.asset_type}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {mandate.description?.trim() ? (
+              <p className="mt-3 border-t border-gray-100 pt-3 text-xs leading-relaxed text-gray-600">
+                {mandate.description.trim()}
+              </p>
+            ) : null}
+          </section>
+        ) : (
+          <section className="rounded-xl border border-dashed border-gray-200 bg-gray-50/70 p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Mandate</h2>
+            </div>
+            <p className="mt-3 text-sm font-medium text-gray-900">Mandate unavailable</p>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              The mandate linked to this deal room is not visible for {companyRecord.name}. It may have
+              been removed or is no longer under this company.
+            </p>
+            <p className="mt-2 break-all font-mono text-[10px] text-gray-400">{dealRoom.mandate_id}</p>
+            <Link
+              href="/mandates"
+              className="mt-3 inline-flex text-[11px] font-medium text-gray-800 underline-offset-2 hover:underline"
+            >
+              Browse mandates
+            </Link>
+          </section>
+        )}
       </div>
 
       <section className="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-4">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Workspace</h2>
         <p className="mt-1 text-xs leading-relaxed text-gray-600">
-          Negotiation notes, messaging, tasks, and shared files will plug in here as the deal room
-          evolves. For now, use the links above to work from the full asset and mandate records.
+          {anySideMissing
+            ? "When both sides are available again, use the links above to jump into the full records. Messaging, notes, and files will land here in a later release."
+            : "Negotiation notes, messaging, tasks, and shared files will plug in here as the deal room evolves. For now, use the links above to work from the full asset and mandate records."}
         </p>
       </section>
     </main>

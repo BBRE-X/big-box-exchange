@@ -373,7 +373,10 @@ export default async function PortfolioPage() {
                         className="peer sr-only"
                         aria-label="Mark as priority match"
                       />
-                      <form action={createDealRoomFromPortfolio}>
+                      <form
+                        action={createDealRoomFromPortfolio}
+                        aria-label="Open deal room for this match"
+                      >
                         <input type="hidden" name="assetId" value={m.assetId} />
                         <input type="hidden" name="mandateId" value={m.mandateId} />
                         <button
