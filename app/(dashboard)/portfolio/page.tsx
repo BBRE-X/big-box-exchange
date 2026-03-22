@@ -2,6 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
+import {
+  computePortfolioMatches,
+  type AssetForMatch,
+  type MandateForMatch,
+} from "@/lib/matching";
 
 type AssetPreview = {
   id: string;
@@ -37,6 +42,8 @@ function niceMandateStatus(value: string | null) {
   if (!value?.trim()) return "—";
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+const MATCHES_LIMIT = 12;
 
 export default async function PortfolioPage() {
   const supabase = await supabaseServer();
@@ -83,6 +90,8 @@ export default async function PortfolioPage() {
     activeMandatesCountRes,
     assetsPreviewRes,
     mandatesPreviewRes,
+    assetsForMatchRes,
+    mandatesForMatchRes,
   ] = await Promise.all([
     supabase
       .from("assets")
@@ -114,6 +123,16 @@ export default async function PortfolioPage() {
       .eq("company_id", activeCompanyId)
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("assets")
+      .select("id, title, asset_type, suburb, state")
+      .eq("company_id", activeCompanyId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("mandates")
+      .select("id, title, asset_type, location")
+      .eq("company_id", activeCompanyId)
+      .order("created_at", { ascending: false }),
   ]);
 
   const totalAssets = assetsCountRes.count ?? 0;
@@ -123,6 +142,10 @@ export default async function PortfolioPage() {
 
   const assetRows = (assetsPreviewRes.data ?? []) as AssetPreview[];
   const mandateRows = (mandatesPreviewRes.data ?? []) as MandatePreview[];
+
+  const assetsForMatch = (assetsForMatchRes.data ?? []) as AssetForMatch[];
+  const mandatesForMatch = (mandatesForMatchRes.data ?? []) as MandateForMatch[];
+  const matches = computePortfolioMatches(assetsForMatch, mandatesForMatch, MATCHES_LIMIT);
 
   const companyName = companyRecord.name;
   const logoUrl = companyRecord.logo_url;
@@ -197,6 +220,55 @@ export default async function PortfolioPage() {
           </p>
           <p className="mt-1 text-xl font-semibold tabular-nums text-gray-900">{activeMandates}</p>
         </div>
+      </section>
+
+      <section className="mt-5 rounded-xl border border-gray-200 bg-white shadow-sm" aria-label="Matches">
+        <div className="border-b border-gray-100 px-4 py-2.5">
+          <h3 className="text-sm font-semibold text-gray-900">Matches</h3>
+          <p className="mt-0.5 text-[11px] text-gray-500">
+            Heuristic links between your assets and mandates (type, suburb, state via location).
+          </p>
+        </div>
+        {matches.length === 0 ? (
+          <div className="px-4 py-5 text-center">
+            <p className="text-xs font-medium text-gray-700">No strong matches identified yet.</p>
+            <p className="mt-1 text-[11px] text-gray-500">
+              Align asset type and location fields with mandate details to surface pairs here.
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {matches.map((m) => (
+              <li key={`${m.assetId}-${m.mandateId}`} className="px-4 py-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0 text-[11px] leading-snug">
+                      <Link
+                        href={`/assets/${m.assetId}`}
+                        className="min-w-0 truncate font-medium text-gray-900 hover:underline"
+                      >
+                        {m.assetTitle}
+                      </Link>
+                      <span className="shrink-0 text-gray-400" aria-hidden>
+                        ·
+                      </span>
+                      <Link
+                        href={`/mandates/${m.mandateId}`}
+                        className="min-w-0 truncate font-medium text-gray-700 hover:underline"
+                      >
+                        {m.mandateTitle}
+                      </Link>
+                    </div>
+                    <p className="text-[10px] text-gray-500">{m.reasons.join(" · ")}</p>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-gray-900 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-white">
+                    {m.score}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -287,11 +359,10 @@ export default async function PortfolioPage() {
           Future modules
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-gray-500">
-          Coming later: matches, deal rooms, portfolio analytics, and market intelligence — wired into
-          this overview as the platform grows.
+          Coming later: deal rooms, portfolio analytics, and market intelligence — wired into this
+          overview as the platform grows.
         </p>
-        <ul className="mt-3 grid gap-2 text-[11px] text-gray-600 sm:grid-cols-2 lg:grid-cols-4">
-          <li className="rounded-lg bg-white/80 px-2.5 py-2 ring-1 ring-gray-100">Matches</li>
+        <ul className="mt-3 grid gap-2 text-[11px] text-gray-600 sm:grid-cols-2 lg:grid-cols-3">
           <li className="rounded-lg bg-white/80 px-2.5 py-2 ring-1 ring-gray-100">Deal rooms</li>
           <li className="rounded-lg bg-white/80 px-2.5 py-2 ring-1 ring-gray-100">
             Portfolio analytics
