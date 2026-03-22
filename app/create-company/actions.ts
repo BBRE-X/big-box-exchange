@@ -58,8 +58,16 @@ export async function createCompanyAction(formData: FormData) {
 
   if (settingsError) throw new Error(settingsError.message);
 
+  await supabase
+    .from("profiles")
+    .update({ active_company_id: company.id })
+    .eq("id", user.id);
+
   revalidatePath("/app");
   revalidatePath("/home");
+  revalidatePath("/assets");
+  revalidatePath("/portfolio");
+  revalidatePath("/mandates");
 
   redirect("/home");
 }

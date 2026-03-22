@@ -2,11 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
-
-type CompanyRow = {
-  id: string;
-  name: string;
-};
+import { getActiveCompanyRecord } from "@/lib/app-context";
 
 type AssetImageRow = {
   image_url: string;
@@ -102,34 +98,9 @@ export default async function AssetsPage() {
     redirect("/auth");
   }
 
-  const { data: memberships, error: membershipsError } = await supabase
-    .from("memberships")
-    .select("company_id, status, companies(id, name)")
-    .eq("user_id", user.id);
+  const companyRecord = await getActiveCompanyRecord(user.id);
 
-  if (membershipsError) {
-    return (
-      <main className="mx-auto max-w-6xl px-6 py-6">
-        <h1 className="text-2xl font-semibold">Assets</h1>
-        <p className="mt-3 text-sm text-red-600">
-          Failed to load memberships: {membershipsError.message}
-        </p>
-      </main>
-    );
-  }
-
-  const activeMemberships =
-    memberships?.filter((m: any) => !m.status || m.status === "active") ?? [];
-
-  const companies: CompanyRow[] = activeMemberships
-    .map((m: any) => m.companies)
-    .filter(Boolean)
-    .map((c: any) => ({
-      id: c.id,
-      name: c.name,
-    }));
-
-  if (companies.length === 0) {
+  if (!companyRecord) {
     return (
       <main className="mx-auto max-w-6xl px-6 py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -151,18 +122,7 @@ export default async function AssetsPage() {
     );
   }
 
-  let activeCompany = companies[0];
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("active_company_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.active_company_id) {
-    const matched = companies.find((c) => c.id === profile.active_company_id);
-    if (matched) activeCompany = matched;
-  }
+  const activeCompany = { id: companyRecord.id, name: companyRecord.name };
 
   const { data: assets, error: assetsError } = await supabase
     .from("assets")

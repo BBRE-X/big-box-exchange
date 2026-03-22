@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { companyId: string } }
+  { params }: { params: Promise<{ companyId: string }> }
 ) {
   const supabase = await supabaseServer();
 
@@ -14,9 +15,8 @@ export async function GET(
     return NextResponse.redirect(new URL("/auth", _req.url));
   }
 
-  const companyId = params.companyId;
+  const { companyId } = await params;
 
-  // verify user has active membership in that company
   const { data: membership } = await supabase
     .from("memberships")
     .select("id")
@@ -29,13 +29,20 @@ export async function GET(
     return NextResponse.redirect(new URL("/companies?error=not_allowed", _req.url));
   }
 
-  // set active company
+  await supabase.from("user_settings").upsert(
+    { user_id: user.id, active_company_id: companyId },
+    { onConflict: "user_id" }
+  );
+
   await supabase
-    .from("user_settings")
-    .upsert(
-      { user_id: user.id, active_company_id: companyId },
-      { onConflict: "user_id" }
-    );
+    .from("profiles")
+    .update({ active_company_id: companyId })
+    .eq("id", user.id);
+
+  revalidatePath("/assets");
+  revalidatePath("/assets/new");
+  revalidatePath("/portfolio");
+  revalidatePath("/mandates");
 
   return NextResponse.redirect(new URL("/home", _req.url));
 }

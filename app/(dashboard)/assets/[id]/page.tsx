@@ -2,16 +2,12 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
+import { getActiveCompanyRecord } from "@/lib/app-context";
 
 type PageProps = {
   params: Promise<{
     id: string;
   }>;
-};
-
-type CompanyRow = {
-  id: string;
-  name: string;
 };
 
 type AssetImageRow = {
@@ -123,42 +119,13 @@ export default async function AssetDetailPage({ params }: PageProps) {
     redirect("/auth");
   }
 
-  const { data: memberships, error: membershipsError } = await supabase
-    .from("memberships")
-    .select("company_id, status, companies(id, name)")
-    .eq("user_id", user.id);
+  const companyRecord = await getActiveCompanyRecord(user.id);
 
-  if (membershipsError) {
-    throw new Error(`Failed to load memberships: ${membershipsError.message}`);
-  }
-
-  const activeMemberships =
-    memberships?.filter((m: any) => !m.status || m.status === "active") ?? [];
-
-  const companies: CompanyRow[] = activeMemberships
-    .map((m: any) => m.companies)
-    .filter(Boolean)
-    .map((c: any) => ({
-      id: c.id,
-      name: c.name,
-    }));
-
-  if (companies.length === 0) {
+  if (!companyRecord) {
     redirect("/companies");
   }
 
-  let activeCompany = companies[0];
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("active_company_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.active_company_id) {
-    const matched = companies.find((c) => c.id === profile.active_company_id);
-    if (matched) activeCompany = matched;
-  }
+  const activeCompany = { id: companyRecord.id, name: companyRecord.name };
 
   const { data: asset, error: assetError } = await supabase
     .from("assets")

@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import NewAssetForm from "@/components/assets/NewAssetForm";
+import { getActiveCompanyRecord } from "@/lib/app-context";
 
 type SearchParams = Promise<{
   id?: string;
@@ -9,11 +10,6 @@ type SearchParams = Promise<{
 
 type PageProps = {
   searchParams?: SearchParams;
-};
-
-type CompanyRow = {
-  id: string;
-  name: string;
 };
 
 const BUCKET_NAME = "asset-images";
@@ -68,42 +64,13 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
     redirect("/auth");
   }
 
-  const { data: memberships, error: membershipsError } = await supabase
-    .from("memberships")
-    .select("company_id, status, companies(id, name)")
-    .eq("user_id", user.id);
+  const companyRecord = await getActiveCompanyRecord(user.id);
 
-  if (membershipsError) {
-    throw new Error(`Failed to load memberships: ${membershipsError.message}`);
-  }
-
-  const activeMemberships =
-    memberships?.filter((m: any) => !m.status || m.status === "active") ?? [];
-
-  const companies: CompanyRow[] = activeMemberships
-    .map((m: any) => m.companies)
-    .filter(Boolean)
-    .map((c: any) => ({
-      id: c.id,
-      name: c.name,
-    }));
-
-  if (companies.length === 0) {
+  if (!companyRecord) {
     redirect("/companies");
   }
 
-  let activeCompany = companies[0];
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("active_company_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.active_company_id) {
-    const matched = companies.find((c) => c.id === profile.active_company_id);
-    if (matched) activeCompany = matched;
-  }
+  const activeCompany = { id: companyRecord.id, name: companyRecord.name };
 
   let initialData: Record<string, unknown> | null = null;
 
@@ -164,42 +131,13 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
       redirect("/auth");
     }
 
-    const { data: memberships, error: membershipsError } = await supabase
-      .from("memberships")
-      .select("company_id, status, companies(id, name)")
-      .eq("user_id", user.id);
+    const companyRecord = await getActiveCompanyRecord(user.id);
 
-    if (membershipsError) {
-      throw new Error(`Failed to load memberships: ${membershipsError.message}`);
-    }
-
-    const activeMemberships =
-      memberships?.filter((m: any) => !m.status || m.status === "active") ?? [];
-
-    const companies: CompanyRow[] = activeMemberships
-      .map((m: any) => m.companies)
-      .filter(Boolean)
-      .map((c: any) => ({
-        id: c.id,
-        name: c.name,
-      }));
-
-    if (companies.length === 0) {
+    if (!companyRecord) {
       redirect("/companies");
     }
 
-    let activeCompany = companies[0];
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("active_company_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profile?.active_company_id) {
-      const matched = companies.find((c) => c.id === profile.active_company_id);
-      if (matched) activeCompany = matched;
-    }
+    const activeCompany = { id: companyRecord.id, name: companyRecord.name };
 
     const title = String(formData.get("title") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
@@ -361,7 +299,7 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <NewAssetForm action={saveAssetAction} initialData={initialData} />
+      <NewAssetForm action={saveAssetAction} initialData={initialData ?? undefined} />
     </main>
   );
 }
