@@ -67,11 +67,11 @@ function matchStrengthLabel(s: MatchStrength): string {
 function displayMatchReason(reason: string): string {
   switch (reason) {
     case "Type match":
-      return "Same asset type";
+      return "Asset type match";
     case "Suburb match":
-      return "Suburb fits mandate location";
+      return "Suburb match · Location aligned";
     case "State match":
-      return "State fits mandate location";
+      return "State aligned";
     default:
       return reason;
   }
@@ -272,8 +272,7 @@ export default async function PortfolioPage() {
                 ) : null}
               </div>
               <p className="mt-0.5 max-w-2xl text-[11px] leading-snug text-gray-500">
-                Strongest internal pairings between your current assets and mandates, ranked by
-                overlapping type and location signals.
+                Highest-confidence matches between your current assets and active mandates.
               </p>
             </div>
           </div>
@@ -289,83 +288,148 @@ export default async function PortfolioPage() {
             </p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-100">
-            {matches.map((m) => {
-              const strength = matchStrength(m.score);
-              const pct = matchScorePercent(m.score);
-              const barClass =
-                strength === "strong"
-                  ? "bg-gray-900"
-                  : strength === "medium"
-                    ? "bg-gray-600"
-                    : "bg-gray-400";
-              const badgeClass =
-                strength === "strong"
-                  ? "border-gray-900 bg-gray-900 text-white"
-                  : strength === "medium"
-                    ? "border-gray-300 bg-white text-gray-900"
-                    : "border-gray-200 bg-gray-50 text-gray-700";
-              return (
-                <li key={`${m.assetId}-${m.mandateId}`}>
-                  <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-stretch sm:gap-3 sm:px-4 sm:py-2.5">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-gray-400">
-                        Asset → Mandate
-                      </p>
-                      <div className="space-y-0.5">
-                        <Link
-                          href={`/assets/${m.assetId}`}
-                          className="block truncate text-sm font-semibold leading-tight text-gray-900 decoration-gray-300 underline-offset-2 hover:underline"
-                        >
-                          {m.assetTitle}
-                        </Link>
-                        <div className="flex items-center gap-1.5 pl-0.5">
-                          <span className="text-[10px] font-medium text-gray-300" aria-hidden>
-                            →
-                          </span>
+          <>
+            <ul className="divide-y divide-gray-100">
+              {matches.map((m) => {
+                const strength = matchStrength(m.score);
+                const pct = matchScorePercent(m.score);
+                const barClass =
+                  strength === "strong"
+                    ? "bg-gray-900"
+                    : strength === "medium"
+                      ? "bg-gray-600"
+                      : "bg-gray-400";
+                const badgeClass =
+                  strength === "strong"
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : strength === "medium"
+                      ? "border-gray-300 bg-white text-gray-900"
+                      : "border-gray-200 bg-gray-50 text-gray-700";
+                const rowKey = `${m.assetId}-${m.mandateId}`;
+                const priorityId = `match-priority-${rowKey.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+                const encodedMatch = encodeURIComponent(
+                  JSON.stringify({
+                    assetId: m.assetId,
+                    assetTitle: m.assetTitle,
+                    mandateId: m.mandateId,
+                    mandateTitle: m.mandateTitle,
+                    score: m.score,
+                    reasons: m.reasons,
+                  })
+                );
+                return (
+                  <li
+                    key={rowKey}
+                    data-match-row
+                    data-match={encodedMatch}
+                    className="transition-colors has-[:checked]:bg-amber-50/45"
+                  >
+                    <div className="grid grid-cols-1 gap-2.5 px-3 py-2 sm:grid-cols-[minmax(0,1fr)_7.5rem_auto] sm:items-center sm:gap-3 sm:px-4 sm:py-2">
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                          Asset → Mandate
+                        </p>
+                        <div className="space-y-0.5">
                           <Link
-                            href={`/mandates/${m.mandateId}`}
-                            className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-gray-700 decoration-gray-300 underline-offset-2 hover:underline"
+                            href={`/assets/${m.assetId}`}
+                            className="block truncate text-sm font-semibold leading-tight text-gray-900 decoration-gray-300 underline-offset-2 hover:underline"
                           >
-                            {m.mandateTitle}
+                            {m.assetTitle}
                           </Link>
+                          <div className="flex items-center gap-1.5 pl-0.5">
+                            <span className="text-[10px] font-medium text-gray-300" aria-hidden>
+                              →
+                            </span>
+                            <Link
+                              href={`/mandates/${m.mandateId}`}
+                              className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-gray-700 decoration-gray-300 underline-offset-2 hover:underline"
+                            >
+                              {m.mandateTitle}
+                            </Link>
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-[10px] leading-snug text-gray-500">
-                        <span className="font-medium text-gray-600">Signals · </span>
-                        {m.reasons.map(displayMatchReason).join(" · ")}
-                      </p>
-                      <div
-                        className="pt-0.5"
-                        role="presentation"
-                        aria-hidden
-                      >
-                        <div className="h-0.5 overflow-hidden rounded-full bg-gray-100">
-                          <div
-                            className={`h-full rounded-full ${barClass}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <p className="mt-0.5 text-[9px] tabular-nums text-gray-400">
-                          Fit vs max signals · {pct}%
+                        <p className="text-[10px] leading-snug text-gray-500">
+                          {m.reasons.map(displayMatchReason).join(" · ")}
                         </p>
                       </div>
-                    </div>
-                    <div className="flex shrink-0 flex-row items-center justify-between gap-2 sm:flex-col sm:items-end sm:justify-center sm:pt-5">
-                      <div
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 shadow-sm ${badgeClass}`}
-                      >
-                        <span className="text-[9px] font-semibold uppercase tracking-wide opacity-90">
-                          {matchStrengthLabel(strength)}
-                        </span>
-                        <span className="text-[11px] font-bold tabular-nums">{m.score}</span>
+
+                      <div className="flex w-full flex-col justify-center gap-1 sm:w-[7.5rem]">
+                        <div
+                          className={`inline-flex w-max max-w-full items-center gap-1 rounded-full border px-2 py-0.5 shadow-sm ${badgeClass}`}
+                        >
+                          <span className="text-[11px] font-bold tabular-nums">{m.score}</span>
+                          <span className="text-[9px] font-medium opacity-80" aria-hidden>
+                            ·
+                          </span>
+                          <span className="text-[9px] font-semibold tracking-tight opacity-90">
+                            {matchStrengthLabel(strength)}
+                          </span>
+                        </div>
+                        <div className="w-full">
+                          <div className="h-0.5 overflow-hidden rounded-full bg-gray-100">
+                            <div
+                              className={`h-full rounded-full ${barClass}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <p className="mt-0.5 text-[9px] tabular-nums text-gray-400">
+                            Match strength · {pct}%
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-stretch justify-center gap-1 sm:items-end">
+                        <input
+                          type="checkbox"
+                          id={priorityId}
+                          className="peer sr-only"
+                          aria-label="Mark as priority match"
+                        />
+                        <button
+                          type="button"
+                          data-open-deal
+                          className="rounded-md bg-gray-900 px-2.5 py-1 text-center text-[11px] font-semibold text-white shadow-sm transition hover:bg-gray-800"
+                        >
+                          Open deal room
+                        </button>
+                        <label
+                          htmlFor={priorityId}
+                          className="cursor-pointer rounded-md border border-gray-200 bg-white px-2.5 py-1 text-center text-[11px] font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 peer-checked:hidden"
+                        >
+                          Mark priority
+                        </label>
+                        <label
+                          htmlFor={priorityId}
+                          className="hidden cursor-pointer rounded-md border border-amber-200/80 bg-amber-100/50 px-2.5 py-1 text-center text-[11px] font-semibold text-amber-900 shadow-sm peer-checked:inline-block"
+                        >
+                          Priority ✓
+                        </label>
                       </div>
                     </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+            <Script id="portfolio-match-deal-room" strategy="afterInteractive">
+              {`(function(){
+                function parseMatch(btn) {
+                  var row = btn && btn.closest("[data-match-row]");
+                  if (!row || !row.getAttribute("data-match")) return null;
+                  try {
+                    return JSON.parse(decodeURIComponent(row.getAttribute("data-match")));
+                  } catch (e) {
+                    return null;
+                  }
+                }
+                document.body.addEventListener("click", function (e) {
+                  var btn = e.target && e.target.closest && e.target.closest("[data-open-deal]");
+                  if (!btn) return;
+                  var m = parseMatch(btn);
+                  if (m) console.log(m);
+                });
+              })();`}
+            </Script>
+          </>
         )}
       </section>
 
