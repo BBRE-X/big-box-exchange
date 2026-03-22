@@ -7,6 +7,7 @@ import {
   type AssetForMatch,
   type MandateForMatch,
 } from "@/lib/matching";
+import { createDealRoomFromPortfolio } from "./actions";
 
 type AssetPreview = {
   id: string;
@@ -372,14 +373,16 @@ export default async function PortfolioPage() {
                         className="peer sr-only"
                         aria-label="Mark as priority match"
                       />
-                      <button
-                        type="button"
-                        disabled
-                        title="Deal room — coming soon"
-                        className="rounded-md bg-gray-900 px-2.5 py-1 text-center text-[11px] font-semibold text-white shadow-sm opacity-70 cursor-not-allowed"
-                      >
-                        Open deal room
-                      </button>
+                      <form action={createDealRoomFromPortfolio}>
+                        <input type="hidden" name="assetId" value={m.assetId} />
+                        <input type="hidden" name="mandateId" value={m.mandateId} />
+                        <button
+                          type="submit"
+                          className="w-full rounded-md bg-gray-900 px-2.5 py-1 text-center text-[11px] font-semibold text-white shadow-sm transition hover:bg-gray-800"
+                        >
+                          Open deal room
+                        </button>
+                      </form>
                       <label
                         htmlFor={priorityId}
                         className="cursor-pointer rounded-md border border-gray-200 bg-white px-2.5 py-1 text-center text-[11px] font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 peer-checked:hidden"
@@ -489,11 +492,10 @@ export default async function PortfolioPage() {
           Future modules
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-gray-500">
-          Coming later: deal rooms, portfolio analytics, and market intelligence — wired into this
-          overview as the platform grows.
+          Coming later: portfolio analytics and market intelligence — wired into this overview as the
+          platform grows.
         </p>
         <ul className="mt-3 grid gap-2 text-[11px] text-gray-600 sm:grid-cols-2 lg:grid-cols-3">
-          <li className="rounded-lg bg-white/80 px-2.5 py-2 ring-1 ring-gray-100">Deal rooms</li>
           <li className="rounded-lg bg-white/80 px-2.5 py-2 ring-1 ring-gray-100">
             Portfolio analytics
           </li>
