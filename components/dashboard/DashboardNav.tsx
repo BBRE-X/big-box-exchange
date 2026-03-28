@@ -7,6 +7,7 @@ const navItems = [
   { href: "/home", label: "Home", prefixMatch: false },
   { href: "/assets", label: "Assets", prefixMatch: true },
   { href: "/mandates", label: "Mandates", prefixMatch: true },
+  { href: "/deal-rooms", label: "Deal Rooms", prefixMatch: true },
   { href: "/portfolio", label: "Portfolio", prefixMatch: true },
 ] as const;
 

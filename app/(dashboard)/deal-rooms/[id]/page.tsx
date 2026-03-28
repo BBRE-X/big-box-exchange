@@ -2,14 +2,20 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
-import { addDealRoomNote } from "./actions";
+
+import { AddDealForm } from "@/app/(dashboard)/deal-rooms/AddDealForm";
+import { labelDealSource } from "@/lib/deal-source";
+import {
+  dealStageBadgeClass,
+  labelDealRoomStage,
+  normalizeDealRoomStage,
+} from "@/lib/deal-room-stage";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type PageProps = {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ note?: string | string[] }>;
 };
 
 type DealRoomRow = {
@@ -18,6 +24,15 @@ type DealRoomRow = {
   asset_id: string;
   mandate_id: string;
   created_at: string;
+};
+
+type DealRow = {
+  id: string;
+  title: string;
+  summary: string | null;
+  stage: string;
+  source: string | null;
+  updated_at: string;
 };
 
 type DealAssetRow = {
@@ -41,12 +56,8 @@ type DealMandateRow = {
   company_id: string;
 };
 
-type DealRoomNoteRow = {
-  id: string;
-  body: string;
-  created_at: string;
-  created_by: string;
-};
+const addDealPrimaryButtonClass =
+  "inline-flex w-full items-center justify-center rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto";
 
 function labelAssetType(value: string) {
   const map: Record<string, string> = {
@@ -86,25 +97,8 @@ function formatRoomDate(value: string) {
   }).format(new Date(value));
 }
 
-function formatNoteTimestamp(value: string) {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function firstSearchParam(value: string | string[] | undefined): string | undefined {
-  if (Array.isArray(value)) return value[0];
-  return value;
-}
-
-export default async function DealRoomDetailPage({ params, searchParams }: PageProps) {
+export default async function DealRoomDetailPage({ params }: PageProps) {
   const { id: dealRoomId } = await params;
-  const sp = searchParams ? await searchParams : {};
-  const noteParam = firstSearchParam(sp.note);
 
   if (!UUID_RE.test(dealRoomId)) {
     notFound();
@@ -141,7 +135,13 @@ export default async function DealRoomDetailPage({ params, searchParams }: PageP
 
   const dealRoom = room as DealRoomRow;
 
-  const [assetRes, mandateRes, notesRes] = await Promise.all([
+  const [dealsRes, assetRes, mandateRes] = await Promise.all([
+    supabase
+      .from("deals")
+      .select("id, title, summary, stage, source, updated_at")
+      .eq("deal_room_id", dealRoomId)
+      .eq("company_id", companyId)
+      .order("updated_at", { ascending: false }),
     supabase
       .from("assets")
       .select("id, title, asset_type, listing_type, suburb, state, is_public, company_id")
@@ -154,13 +154,12 @@ export default async function DealRoomDetailPage({ params, searchParams }: PageP
       .eq("id", dealRoom.mandate_id)
       .eq("company_id", companyId)
       .maybeSingle(),
-    supabase
-      .from("deal_room_notes")
-      .select("id, body, created_at, created_by")
-      .eq("deal_room_id", dealRoomId)
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: false }),
   ]);
+
+  const deals: DealRow[] =
+    !dealsRes.error && dealsRes.data
+      ? (dealsRes.data as DealRow[])
+      : [];
 
   const asset = !assetRes.error && assetRes.data ? (assetRes.data as DealAssetRow) : null;
   const mandate = !mandateRes.error && mandateRes.data ? (mandateRes.data as DealMandateRow) : null;
@@ -171,22 +170,13 @@ export default async function DealRoomDetailPage({ params, searchParams }: PageP
   const mandateMissing = !mandate;
   const anySideMissing = assetMissing || mandateMissing;
 
-  const notes =
-    !notesRes.error && notesRes.data
-      ? (notesRes.data as DealRoomNoteRow[])
-      : [];
-
   const assetLocation = asset
     ? [asset.suburb, asset.state].filter(Boolean).join(", ") || "Location not set"
     : null;
   const mandateLocation = mandate ? mandate.location?.trim() || "—" : null;
 
-  const showEmptyNoteError = noteParam === "empty";
-  const showLongNoteError = noteParam === "long";
-  const showGenericNoteError = noteParam === "error";
-
   return (
-    <main className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-6xl">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
@@ -198,23 +188,29 @@ export default async function DealRoomDetailPage({ params, searchParams }: PageP
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-gray-900">Deal room</h1>
           <p className="mt-1 max-w-2xl text-sm leading-snug text-gray-600">
-            Internal workspace for this asset and mandate pair under {companyRecord.name}. Opened{" "}
-            {formatRoomDate(dealRoom.created_at)}.
+            <span className="font-medium text-gray-800">Summary workspace for active deals</span>{" "}
+            tying this listing and mandate together under {companyRecord.name}. Room opened{" "}
+            {formatRoomDate(dealRoom.created_at)}. Execution — notes, documents, and stage movement —
+            happens inside each individual deal record, not at the room level.
             {anySideMissing ? (
               <>
                 {" "}
                 <span className="text-gray-700">
-                  One or both linked records are unavailable — details below.
+                  One or both linked records are unavailable — context below.
                 </span>
               </>
             ) : null}
           </p>
         </div>
+        <AddDealForm
+          dealRoomId={dealRoomId}
+          buttonClassName={addDealPrimaryButtonClass}
+        />
       </div>
 
       {anySideMissing ? (
         <div
-          className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-2.5 sm:px-4"
+          className="mt-5 rounded-xl border border-amber-200/80 bg-amber-50/50 px-3 py-2.5 sm:px-4"
           role="status"
         >
           <p className="text-[11px] font-semibold text-amber-950">Linked record notice</p>
@@ -226,7 +222,77 @@ export default async function DealRoomDetailPage({ params, searchParams }: PageP
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <section className="mt-8" aria-label="Active deals">
+        <div className="border-b border-gray-200 pb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Active deals</h2>
+          <p className="mt-0.5 text-xs leading-snug text-gray-500">
+            Cards summarise each deal; use Add deal for a new manual opportunity, or view a card for the
+            execution record.
+          </p>
+        </div>
+
+        {deals.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-8 text-center">
+            <p className="text-sm font-medium text-gray-800">No deals in this room yet</p>
+            <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-gray-600">
+              Start with Add deal, or open this room from the portfolio when a listing matches a
+              mandate. If you just applied a database migration, refresh after your workspace syncs.
+            </p>
+            <div className="mt-5 flex justify-center">
+              <AddDealForm
+                dealRoomId={dealRoomId}
+                buttonClassName={addDealPrimaryButtonClass}
+              />
+            </div>
+          </div>
+        ) : (
+          <ul className="mt-4 grid list-none gap-4 p-0 sm:grid-cols-2">
+            {deals.map((deal) => {
+              const stage = normalizeDealRoomStage(deal.stage);
+              return (
+                <li key={deal.id}>
+                  <article className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm ring-1 ring-black/[0.02] transition-shadow hover:shadow-md">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-semibold leading-snug text-gray-900">
+                          {deal.title}
+                        </h3>
+                        <p className="mt-2">
+                          <span className="inline-flex rounded-md bg-gray-50 px-2 py-0.5 text-[10px] font-medium tracking-wide text-gray-600 ring-1 ring-gray-200/90">
+                            {labelDealSource(deal.source)}
+                          </span>
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${dealStageBadgeClass(stage)}`}
+                      >
+                        {labelDealRoomStage(stage)}
+                      </span>
+                    </div>
+                    <p className="mt-3 line-clamp-2 flex-1 text-xs leading-relaxed text-gray-600">
+                      {deal.summary?.trim() ? deal.summary.trim() : "No summary yet."}
+                    </p>
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3">
+                      <p className="text-[11px] text-gray-500">
+                        <span className="font-medium text-gray-600">Updated</span>{" "}
+                        {formatRoomDate(deal.updated_at)}
+                      </p>
+                      <Link
+                        href={`/deal-rooms/${dealRoomId}/deals/${deal.id}`}
+                        className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-900 shadow-sm transition hover:border-gray-400 hover:bg-gray-50"
+                      >
+                        View deal
+                      </Link>
+                    </div>
+                  </article>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <div className="mt-10 grid gap-4 lg:grid-cols-2">
         {asset ? (
           <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-2 border-b border-gray-100 pb-3">
@@ -327,104 +393,14 @@ export default async function DealRoomDetailPage({ params, searchParams }: PageP
         )}
       </div>
 
-      <section className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="border-b border-gray-100 pb-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">Internal notes</h2>
-          <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
-            Visible only to members of {companyRecord.name}. Newest first.
-          </p>
-        </div>
-
-        {showEmptyNoteError ? (
-          <div
-            className="mt-3 rounded-lg border border-amber-200/90 bg-amber-50/60 px-3 py-2 text-[11px] text-amber-950"
-            role="status"
-          >
-            Add some text before saving your note.
-          </div>
-        ) : null}
-        {showLongNoteError ? (
-          <div
-            className="mt-3 rounded-lg border border-amber-200/90 bg-amber-50/60 px-3 py-2 text-[11px] text-amber-950"
-            role="status"
-          >
-            That note is too long. Shorten it and try again.
-          </div>
-        ) : null}
-        {showGenericNoteError ? (
-          <div
-            className="mt-3 rounded-lg border border-red-200/90 bg-red-50/60 px-3 py-2 text-[11px] text-red-950"
-            role="status"
-          >
-            We couldn&apos;t save that note. Please try again.
-          </div>
-        ) : null}
-
-        <form action={addDealRoomNote} className="mt-4 space-y-3">
-          <input type="hidden" name="dealRoomId" value={dealRoomId} />
-          <label className="block">
-            <span className="sr-only">New note</span>
-            <textarea
-              name="body"
-              rows={4}
-              placeholder="Capture context, next steps, or decisions for your team…"
-              className="w-full resize-y rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/10"
-            />
-          </label>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              className="inline-flex items-center rounded-lg bg-gray-900 px-3.5 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-gray-800"
-            >
-              Add note
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-6 border-t border-gray-100 pt-4">
-          {notes.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 text-center">
-              <p className="text-sm font-medium text-gray-800">No notes yet</p>
-              <p className="mt-1 text-xs leading-relaxed text-gray-500">
-                When your team adds updates here, they&apos;ll show up in order with the latest on top.
-              </p>
-            </div>
-          ) : (
-            <ul className="space-y-4">
-              {notes.map((note) => (
-                <li
-                  key={note.id}
-                  className="rounded-lg border border-gray-100 bg-gray-50/40 px-3 py-3 sm:px-4"
-                >
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <p className="text-[11px] font-medium text-gray-700">
-                      {note.created_by === user.id ? "You" : "Team member"}
-                    </p>
-                    <time
-                      dateTime={note.created_at}
-                      className="text-[11px] tabular-nums text-gray-400"
-                    >
-                      {formatNoteTimestamp(note.created_at)}
-                    </time>
-                  </div>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
-                    {note.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      <section className="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-4">
+      <section className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-4">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Workspace</h2>
         <p className="mt-1 text-xs leading-relaxed text-gray-600">
           {anySideMissing
-            ? "When both sides are available again, use the links above to jump into the full records. Messaging and shared files will land here in a later release."
-            : "Messaging, tasks, and shared files will plug in here as the deal room evolves. Use internal notes above for team context; use the links above for full asset and mandate records."}
+            ? "When listing and mandate context is available again, use the links above. This room stays a lightweight overview; deep work belongs on each deal."
+            : "Add deals as manual opportunities or capture them from portfolio matches. View deal opens the execution record for that row — pipeline stage, notes, and files will anchor there as the product grows."}
         </p>
       </section>
-    </main>
+    </div>
   );
 }

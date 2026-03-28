@@ -7,7 +7,7 @@ import {
   type AssetForMatch,
   type MandateForMatch,
 } from "@/lib/matching";
-import { createDealRoomFromPortfolio } from "./actions";
+import { OpenDealRoomForm } from "./OpenDealRoomForm";
 
 type AssetPreview = {
   id: string;
@@ -373,19 +373,7 @@ export default async function PortfolioPage() {
                         className="peer sr-only"
                         aria-label="Mark as priority match"
                       />
-                      <form
-                        action={createDealRoomFromPortfolio}
-                        aria-label="Open deal room for this match"
-                      >
-                        <input type="hidden" name="assetId" value={m.assetId} />
-                        <input type="hidden" name="mandateId" value={m.mandateId} />
-                        <button
-                          type="submit"
-                          className="w-full rounded-md bg-gray-900 px-2.5 py-1 text-center text-[11px] font-semibold text-white shadow-sm transition hover:bg-gray-800"
-                        >
-                          Open deal room
-                        </button>
-                      </form>
+                      <OpenDealRoomForm assetId={m.assetId} mandateId={m.mandateId} />
                       <label
                         htmlFor={priorityId}
                         className="cursor-pointer rounded-md border border-gray-200 bg-white px-2.5 py-1 text-center text-[11px] font-medium text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-50 peer-checked:hidden"

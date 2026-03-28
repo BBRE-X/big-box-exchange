@@ -32,11 +32,11 @@ export default function AuthPage() {
         console.warn("getSession error:", error.message);
         return;
       }
-      if (data.session) window.location.assign("/company");
+      if (data.session) window.location.assign("/home");
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) window.location.assign("/company");
+      if (session) window.location.assign("/home");
     });
 
     return () => {

@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
@@ -8,22 +7,23 @@ import { getActiveCompanyRecord } from "@/lib/app-context";
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const MAX_BODY_LEN = 10_000;
+export type AddDealToRoomResult =
+  | { ok: true }
+  | {
+      ok: false;
+      code:
+        | "invalid_room"
+        | "unauthenticated"
+        | "no_company"
+        | "room_not_found"
+        | "insert_failed";
+    };
 
-export async function addDealRoomNote(formData: FormData) {
+export async function addDealToRoom(formData: FormData): Promise<AddDealToRoomResult> {
   const dealRoomId = String(formData.get("dealRoomId") ?? "").trim();
-  const body = String(formData.get("body") ?? "").trim();
 
   if (!UUID_RE.test(dealRoomId)) {
-    redirect("/portfolio");
-  }
-
-  if (!body) {
-    redirect(`/deal-rooms/${dealRoomId}?note=empty`);
-  }
-
-  if (body.length > MAX_BODY_LEN) {
-    redirect(`/deal-rooms/${dealRoomId}?note=long`);
+    return { ok: false, code: "invalid_room" };
   }
 
   const supabase = await supabaseServer();
@@ -33,37 +33,41 @@ export async function addDealRoomNote(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth");
+    return { ok: false, code: "unauthenticated" };
   }
 
   const companyRecord = await getActiveCompanyRecord(user.id);
 
   if (!companyRecord) {
-    redirect("/companies");
+    return { ok: false, code: "no_company" };
   }
+
+  const companyId = companyRecord.id;
 
   const { data: room, error: roomError } = await supabase
     .from("deal_rooms")
     .select("id, company_id")
     .eq("id", dealRoomId)
-    .eq("company_id", companyRecord.id)
+    .eq("company_id", companyId)
     .maybeSingle();
 
   if (roomError || !room) {
-    redirect("/portfolio");
+    return { ok: false, code: "room_not_found" };
   }
 
-  const { error: insertError } = await supabase.from("deal_room_notes").insert({
+  const { error: insertError } = await supabase.from("deals").insert({
     deal_room_id: dealRoomId,
-    company_id: companyRecord.id,
-    created_by: user.id,
-    body,
+    company_id: companyId,
+    title: "New deal",
+    summary: null,
+    stage: "lead",
+    source: "manual",
   });
 
   if (insertError) {
-    redirect(`/deal-rooms/${dealRoomId}?note=error`);
+    return { ok: false, code: "insert_failed" };
   }
 
   revalidatePath(`/deal-rooms/${dealRoomId}`);
-  redirect(`/deal-rooms/${dealRoomId}`);
+  return { ok: true };
 }

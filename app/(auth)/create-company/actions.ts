@@ -4,7 +4,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseServer } from "@/lib/supabase/server";
 
-const ENTITY_TYPES = ["principal", "agency", "service_provider"] as const;
+const ENTITY_TYPES = [
+  "principal",
+  "investor",
+  "developer",
+  "agency",
+  "capital_partner",
+  "government_authority",
+  "advisory_service_provider",
+] as const;
+
 type EntityType = (typeof ENTITY_TYPES)[number];
 
 export async function createCompanyAction(formData: FormData) {
@@ -19,34 +28,33 @@ export async function createCompanyAction(formData: FormData) {
   const { data: userData, error: userErr } = await supabase.auth.getUser();
   if (userErr) throw new Error(userErr.message);
 
+  console.log("AUTH USER:", userData?.user);
+
   const user = userData.user;
   if (!user) redirect("/auth");
 
-  // 1) Create company
   const { data: company, error: companyError } = await supabase
     .from("companies")
     .insert({
       name,
       entity_type,
-      created_by: user.id, // keep explicit; matches RLS check (auth.uid() = created_by)
+      created_by: user.id,
     })
     .select("id")
     .single();
 
   if (companyError) throw new Error(companyError.message);
-  if (!company?.id) throw new Error("Company creation failed (no ID returned).");
+  if (!company?.id) throw new Error("Company creation failed.");
 
-  // 2) Create membership (owner + active)
   const { error: membershipError } = await supabase.from("memberships").insert({
     user_id: user.id,
     company_id: company.id,
     role: "owner",
-    is_active: true,
+    status: "active",
   });
 
   if (membershipError) throw new Error(membershipError.message);
 
-  // 3) Persist active company selection
   const { error: settingsError } = await supabase.from("user_settings").upsert(
     {
       user_id: user.id,
@@ -63,7 +71,6 @@ export async function createCompanyAction(formData: FormData) {
     .update({ active_company_id: company.id })
     .eq("id", user.id);
 
-  revalidatePath("/app");
   revalidatePath("/home");
   revalidatePath("/assets");
   revalidatePath("/portfolio");

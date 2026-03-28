@@ -1,7 +1,6 @@
 import { redirect, notFound } from "next/navigation";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import NewAssetForm from "@/components/assets/NewAssetForm";
+import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
 
 type SearchParams = Promise<{
@@ -41,20 +40,7 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const assetId = resolvedSearchParams?.id;
 
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
+  const supabase = await supabaseServer();
 
   const {
     data: { user },
@@ -108,20 +94,7 @@ export default async function NewAssetPage({ searchParams }: PageProps) {
   async function saveAssetAction(formData: FormData) {
     "use server";
 
-    const cookieStore = await cookies();
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll() {},
-        },
-      }
-    );
+    const supabase = await supabaseServer();
 
     const {
       data: { user },
