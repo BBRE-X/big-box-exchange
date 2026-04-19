@@ -2,11 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
-import {
-  dealStageBadgeClass,
-  labelDealRoomStage,
-  normalizeDealRoomStage,
-} from "@/lib/deal-room-stage";
+import { DealStageSelector } from "./DealStageSelector";
+import { DealNotes } from "./DealNotes";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -25,6 +22,28 @@ type DealRow = {
   updated_at: string;
 };
 
+type MembershipRow = {
+  user_id: string;
+  role: string | null;
+};
+
+type NoteRow = {
+  id: string;
+  body: string;
+  created_at: string;
+  created_by: string | null;
+};
+
+type NormalizedNote = {
+  id: string;
+  body: string;
+  created_at: string;
+  created_by: string | null;
+  authorEmail: string | null;
+  authorRole: string | null;
+  isCurrentUser: boolean;
+};
+
 function formatUpdatedAt(value: string) {
   return new Intl.DateTimeFormat("en-AU", {
     day: "numeric",
@@ -32,6 +51,7 @@ function formatUpdatedAt(value: string) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Australia/Brisbane",
   }).format(new Date(value));
 }
 
@@ -73,7 +93,42 @@ export default async function DealRecordPage({ params }: PageProps) {
   }
 
   const row = deal as DealRow;
-  const stage = normalizeDealRoomStage(row.stage);
+
+  const { data: notesRaw, error: notesError } = await supabase
+    .from("deal_room_notes")
+    .select("id, body, created_at, created_by")
+    .eq("deal_room_id", dealRoomId)
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+
+  if (notesError) {
+    console.error("[DealRecordPage] Failed to load notes:", notesError);
+  }
+
+  const { data: membershipsRaw, error: membershipsError } = await supabase
+    .from("memberships")
+    .select("user_id, role")
+    .eq("company_id", companyId);
+
+  if (membershipsError) {
+    console.error("[DealRecordPage] Failed to load memberships:", membershipsError);
+  }
+
+  const memberships = (membershipsRaw ?? []) as MembershipRow[];
+
+  const notes = ((notesRaw ?? []) as NoteRow[]).map((note): NormalizedNote => {
+    const membership = memberships.find((m) => m.user_id === note.created_by);
+
+    return {
+      id: note.id,
+      body: note.body,
+      created_at: note.created_at,
+      created_by: note.created_by,
+      authorEmail: note.created_by === user.id ? user.email ?? null : null,
+      authorRole: membership?.role ?? "Member",
+      isCurrentUser: note.created_by === user.id,
+    };
+  });
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -82,7 +137,10 @@ export default async function DealRecordPage({ params }: PageProps) {
           Portfolio
         </Link>
         <span className="mx-1.5 text-gray-300">/</span>
-        <Link href={`/deal-rooms/${dealRoomId}`} className="text-gray-500 hover:text-gray-800">
+        <Link
+          href={`/deal-rooms/${dealRoomId}`}
+          className="text-gray-500 hover:text-gray-800"
+        >
           Deal room
         </Link>
         <span className="mx-1.5 text-gray-300">/</span>
@@ -91,33 +149,51 @@ export default async function DealRecordPage({ params }: PageProps) {
 
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{row.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+            {row.title}
+          </h1>
           <p className="mt-1 text-sm leading-snug text-gray-600">
-            Execution record for this deal under {companyRecord.name}. Pipeline stage and detailed
-            activity will live here as the product grows.
+            Execution record for this deal under {companyRecord.name}.
           </p>
         </div>
-        <span
-          className={`inline-flex w-fit shrink-0 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${dealStageBadgeClass(stage)}`}
-        >
-          {labelDealRoomStage(stage)}
-        </span>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <DealStageSelector
+          dealId={dealId}
+          dealRoomId={dealRoomId}
+          currentStage={row.stage}
+        />
       </div>
 
       <dl className="mt-8 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
         <div>
-          <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Summary</dt>
-          <dd className="mt-1 text-sm leading-relaxed text-gray-800">
-            {row.summary?.trim() ? row.summary.trim() : "No summary yet."}
+          <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            Summary
+          </dt>
+          <dd className="mt-1 text-sm text-gray-800">
+            {row.summary?.trim() || "No summary yet."}
           </dd>
         </div>
+
         <div className="border-t border-gray-100 pt-4">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             Last updated
           </dt>
-          <dd className="mt-1 text-sm font-medium text-gray-900">{formatUpdatedAt(row.updated_at)}</dd>
+          <dd className="mt-1 text-sm font-medium text-gray-900">
+            {formatUpdatedAt(row.updated_at)}
+          </dd>
         </div>
       </dl>
+
+      <div className="mt-8">
+        <DealNotes
+          dealId={dealId}
+          dealRoomId={dealRoomId}
+          initialNotes={notes}
+          currentUserDisplayName={companyRecord.name}
+        />
+      </div>
 
       <div className="mt-6">
         <Link

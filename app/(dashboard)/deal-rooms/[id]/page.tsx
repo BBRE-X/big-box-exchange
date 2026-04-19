@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
 
 import { AddDealForm } from "@/app/(dashboard)/deal-rooms/AddDealForm";
+import { DealRoomNotes } from "@/app/(dashboard)/deal-rooms/[id]/DealRoomNotes";
 import { labelDealSource } from "@/lib/deal-source";
 import {
   dealStageBadgeClass,
@@ -54,6 +55,13 @@ type DealMandateRow = {
   status: string | null;
   description: string | null;
   company_id: string;
+};
+
+type DealRoomNoteRow = {
+  id: string;
+  body: string;
+  created_at: string;
+  created_by: string;
 };
 
 const addDealPrimaryButtonClass =
@@ -135,7 +143,7 @@ export default async function DealRoomDetailPage({ params }: PageProps) {
 
   const dealRoom = room as DealRoomRow;
 
-  const [dealsRes, assetRes, mandateRes] = await Promise.all([
+  const [dealsRes, assetRes, mandateRes, notesRes] = await Promise.all([
     supabase
       .from("deals")
       .select("id, title, summary, stage, source, updated_at")
@@ -154,11 +162,22 @@ export default async function DealRoomDetailPage({ params }: PageProps) {
       .eq("id", dealRoom.mandate_id)
       .eq("company_id", companyId)
       .maybeSingle(),
+    supabase
+      .from("deal_room_notes")
+      .select("id, body, created_at, created_by")
+      .eq("deal_room_id", dealRoomId)
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false }),
   ]);
 
   const deals: DealRow[] =
     !dealsRes.error && dealsRes.data
       ? (dealsRes.data as DealRow[])
+      : [];
+
+  const notes: DealRoomNoteRow[] =
+    !notesRes.error && notesRes.data
+      ? (notesRes.data as DealRoomNoteRow[])
       : [];
 
   const asset = !assetRes.error && assetRes.data ? (assetRes.data as DealAssetRow) : null;
@@ -291,6 +310,18 @@ export default async function DealRoomDetailPage({ params }: PageProps) {
           </ul>
         )}
       </section>
+
+      <DealRoomNotes
+        dealRoomId={dealRoomId}
+        initialNotes={notes.map((note) => ({
+          id: note.id,
+          body: note.body,
+          created_at: note.created_at,
+          created_by: note.created_by,
+          user_email: null,
+        }))}
+        userEmail={user?.email ?? null}
+      />
 
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
         {asset ? (
