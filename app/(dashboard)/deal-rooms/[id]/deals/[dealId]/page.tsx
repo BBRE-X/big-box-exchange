@@ -95,9 +95,9 @@ export default async function DealRecordPage({ params }: PageProps) {
   const row = deal as DealRow;
 
   const { data: notesRaw, error: notesError } = await supabase
-    .from("deal_room_notes")
+    .from("deal_notes")
     .select("id, body, created_at, created_by")
-    .eq("deal_room_id", dealRoomId)
+    .eq("deal_id", dealId)
     .eq("company_id", companyId)
     .order("created_at", { ascending: false });
 

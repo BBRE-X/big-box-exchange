@@ -21,8 +21,28 @@ export default function AuthPage() {
 
   const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-  // If already logged in, go straight to /company
+  // If already logged in, go straight to /home.
+  // In development, if NEXT_PUBLIC_DEV_AUTO_LOGIN is set, delegate to the
+  // /auth/dev-login route handler which signs in with password and sets real cookies.
+  // Skip the redirect if dev_error=1 is present — that means the route handler
+  // already failed and redirected back here; we must not loop.
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("dev_error") === "1") {
+      setStatus("error");
+      setMessage("Dev auto-login failed. Check DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD in .env.local.");
+      return;
+    }
+
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.NEXT_PUBLIC_DEV_AUTO_LOGIN === "true"
+    ) {
+      window.location.assign("/auth/dev-login");
+      return;
+    }
+
     let mounted = true;
 
     supabase.auth.getSession().then(({ data, error }) => {
