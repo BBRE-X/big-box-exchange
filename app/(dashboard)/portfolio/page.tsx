@@ -4,8 +4,11 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
 import {
   computePortfolioMatches,
+  matchStrength,
+  MATCH_SCORE_MAX,
   type AssetForMatch,
   type MandateForMatch,
+  type MatchStrength,
 } from "@/lib/matching";
 import { OpenDealRoomForm } from "./OpenDealRoomForm";
 
@@ -44,20 +47,10 @@ function niceMandateStatus(value: string | null) {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-/** Display only — mirrors v1 weights (40 + 35 + 15). */
-const MATCH_SCORE_MAX = 90;
-
 function matchScorePercent(score: number): number {
   return Math.min(100, Math.round((score / MATCH_SCORE_MAX) * 100));
 }
 
-type MatchStrength = "strong" | "medium" | "light";
-
-function matchStrength(score: number): MatchStrength {
-  if (score >= 65) return "strong";
-  if (score >= 35) return "medium";
-  return "light";
-}
 
 function matchStrengthLabel(s: MatchStrength): string {
   if (s === "strong") return "Strong";
@@ -73,6 +66,10 @@ function displayMatchReason(reason: string): string {
       return "Suburb match · Location aligned";
     case "State match":
       return "State aligned";
+    case "Budget overlap":
+      return "Budget aligned";
+    case "Size match":
+      return "Building area match";
     default:
       return reason;
   }
@@ -160,12 +157,14 @@ export default async function PortfolioPage() {
       .limit(5),
     supabase
       .from("assets")
-      .select("id, title, asset_type, suburb, state")
+      .select("id, title, asset_type, suburb, state, price_min, price_max, building_area_sqm")
       .eq("company_id", activeCompanyId)
       .order("created_at", { ascending: false }),
     supabase
       .from("mandates")
-      .select("id, title, asset_type, location")
+      .select(
+        "id, title, asset_type, location, budget_min, budget_max, building_area_min_sqm, building_area_max_sqm, search_areas"
+      )
       .eq("company_id", activeCompanyId)
       .order("created_at", { ascending: false }),
   ]);

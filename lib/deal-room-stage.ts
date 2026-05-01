@@ -10,7 +10,7 @@ export const DEAL_ROOM_STAGES = [
 export type DealRoomStage = (typeof DEAL_ROOM_STAGES)[number];
 
 const STAGE_LABELS: Record<DealRoomStage, string> = {
-  lead: "Lead",
+  lead: "Initiated",
   qualified: "Qualified",
   under_review: "Under review",
   negotiation: "Negotiation",

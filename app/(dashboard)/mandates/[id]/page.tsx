@@ -2,6 +2,14 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getActiveCompanyId } from "@/lib/app-context";
+import {
+  scoreAssetMandatePair,
+  type AssetForMatch,
+  type MandateForMatch,
+  type MandateSearchArea,
+} from "@/lib/matching";
+import { MandateMatchCard, type MatchedAsset } from "@/components/matching/MandateMatchCard";
 
 /**
  * Mandate row shape: aligned with `app/(dashboard)/mandates/new/page.tsx` insert/update payload
@@ -10,6 +18,8 @@ import { supabaseServer } from "@/lib/supabase/server";
  * Future DB extensions (add migrations + types before UI): mandate_visibility,
  * yield_target_pct, irr_target_pct, equity_multiple, structured markets/geo, buyer brief fields.
  */
+
+const ASSET_MATCHES_LIMIT = 20;
 
 type SearchArea = {
   label?: string | null;
@@ -218,38 +228,72 @@ export default async function MandateDetailPage({
     redirect("/auth");
   }
 
-  const { data: activeMembership, error: membershipError } = await supabase
-    .from("memberships")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .maybeSingle();
+  const companyId = await getActiveCompanyId(user.id);
 
-  if (membershipError) {
-    console.error("Failed to load active membership:", membershipError);
-  }
-
-  if (!activeMembership?.company_id) {
+  if (!companyId) {
     redirect("/companies");
   }
 
-  const { data: mandate, error } = await supabase
-    .from("mandates")
-    .select("*")
-    .eq("id", id)
-    .eq("company_id", activeMembership.company_id)
-    .maybeSingle();
+  // Fetch mandate and company assets in parallel
+  const [mandateRes, assetsRes] = await Promise.all([
+    supabase
+      .from("mandates")
+      .select("*")
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .maybeSingle(),
+    supabase
+      .from("assets")
+      .select(
+        "id, title, asset_type, suburb, state, country, price_min, price_max, price_display, building_area_sqm, land_area_sqm, is_public"
+      )
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  if (error) {
-    console.error("Failed to load mandate:", error);
+  if (mandateRes.error) {
+    console.error("Failed to load mandate:", mandateRes.error);
   }
 
-  if (!mandate) {
+  if (!mandateRes.data) {
     notFound();
   }
 
-  const row = mandate as MandateDetailRow;
+  const row = mandateRes.data as MandateDetailRow;
   const searchAreas = parseSearchAreas(row.search_areas).filter(searchAreaHasContent);
+
+  // Build mandate shape for scoring
+  const mandateForMatch: MandateForMatch = {
+    id: row.id,
+    title: row.title ?? "",
+    asset_type: row.asset_type ?? null,
+    location: row.location ?? null,
+    budget_min: row.budget_min ?? null,
+    budget_max: row.budget_max ?? null,
+    building_area_min_sqm: row.building_area_min_sqm ?? null,
+    building_area_max_sqm: row.building_area_max_sqm ?? null,
+    search_areas: parseSearchAreas(row.search_areas) as MandateSearchArea[],
+  };
+
+  // Score each company asset against this mandate
+  const matchedAssets = ((assetsRes.data ?? []) as MatchedAsset[])
+    .flatMap((asset) => {
+      const assetForMatch: AssetForMatch = {
+        id: asset.id,
+        title: asset.title,
+        asset_type: asset.asset_type,
+        suburb: asset.suburb,
+        state: asset.state,
+        price_min: asset.price_min,
+        price_max: asset.price_max,
+        building_area_sqm: asset.building_area_sqm,
+      };
+      const { score, reasons } = scoreAssetMandatePair(assetForMatch, mandateForMatch);
+      if (score <= 0) return [];
+      return [{ asset, score, reasons }];
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, ASSET_MATCHES_LIMIT);
 
   const displayTitle = isMeaningfulString(row.title) ? row.title!.trim() : "Untitled mandate";
 
@@ -534,6 +578,45 @@ export default async function MandateDetailPage({
           </SectionCard>
         )}
       </div>
+
+      {/* Matched assets — primary match surface for this mandate */}
+      <section className="mt-8" aria-label="Matched assets">
+        <div className="border-b border-gray-200 pb-3">
+          <h2 className="flex items-baseline gap-2 text-sm font-semibold tracking-tight text-gray-900">
+            Matched assets
+            {matchedAssets.length > 0 ? (
+              <span className="text-[10px] font-medium text-gray-400">
+                {matchedAssets.length} found
+              </span>
+            ) : null}
+          </h2>
+          <p className="mt-0.5 text-xs leading-snug text-gray-500">
+            Assets from your portfolio that match this mandate&apos;s criteria.
+          </p>
+        </div>
+
+        {matchedAssets.length === 0 ? (
+          <div className="mt-3 rounded-xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-6 text-center">
+            <p className="text-xs font-medium text-gray-700">No matches yet</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500">
+              Add assets to your portfolio that align with this mandate&apos;s type, location, and
+              budget.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {matchedAssets.map((m) => (
+              <MandateMatchCard
+                key={m.asset.id}
+                mandateId={row.id}
+                asset={m.asset}
+                score={m.score}
+                reasons={m.reasons}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

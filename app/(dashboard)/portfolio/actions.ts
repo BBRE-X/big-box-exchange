@@ -39,7 +39,7 @@ async function insertInitialDealForRoom(
   dealRoomId: string,
   assetId: string,
   mandateId: string
-) {
+): Promise<string | null> {
   const [{ data: assetRow }, { data: mandateRow }] = await Promise.all([
     supabase
       .from("assets")
@@ -60,14 +60,39 @@ async function insertInitialDealForRoom(
       ? `${assetRow.title} · ${mandateRow.title}`
       : "Active deal";
 
-  await supabase.from("deals").insert({
+  const { error } = await supabase.from("deals").insert({
     deal_room_id: dealRoomId,
     company_id: companyId,
     title: dealTitle,
     summary: null,
     stage: "lead",
-    source: "match",
   });
+
+  return error?.message ?? null;
+}
+
+/**
+ * Ensures at least one deal exists for a room.
+ * Uses a plain select (no head:true) so count failures cannot mask missing deals.
+ * Returns null on success, an error message string on failure.
+ */
+async function ensureDealForRoom(
+  supabase: SupabaseClient,
+  companyId: string,
+  roomId: string,
+  assetId: string,
+  mandateId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("deals")
+    .select("id")
+    .eq("deal_room_id", roomId)
+    .eq("company_id", companyId)
+    .limit(1);
+
+  if (data?.length) return null; // deal already exists
+
+  return insertInitialDealForRoom(supabase, companyId, roomId, assetId, mandateId);
 }
 
 export async function createDealRoomFromPortfolio(
@@ -119,6 +144,8 @@ export async function createDealRoomFromPortfolio(
 
   const existingId = await fetchDealRoomIdForPair(supabase, companyId, assetId, mandateId);
   if (existingId) {
+    const dealErr = await ensureDealForRoom(supabase, companyId, existingId, assetId, mandateId);
+    if (dealErr) return { ok: false, error: "Could not create deal for this room. Try again." };
     return { ok: true, dealRoomId: existingId };
   }
 
@@ -133,13 +160,16 @@ export async function createDealRoomFromPortfolio(
     .single();
 
   if (inserted?.id) {
-    await insertInitialDealForRoom(supabase, companyId, inserted.id, assetId, mandateId);
+    const dealErr = await ensureDealForRoom(supabase, companyId, inserted.id, assetId, mandateId);
+    if (dealErr) return { ok: false, error: "Could not create deal for new room. Try again." };
     return { ok: true, dealRoomId: inserted.id };
   }
 
   if (insertError?.code === "23505") {
     const afterConflictId = await fetchDealRoomIdForPair(supabase, companyId, assetId, mandateId);
     if (afterConflictId) {
+      const dealErr = await ensureDealForRoom(supabase, companyId, afterConflictId, assetId, mandateId);
+      if (dealErr) return { ok: false, error: "Could not create deal for this room. Try again." };
       return { ok: true, dealRoomId: afterConflictId };
     }
   }
@@ -147,6 +177,8 @@ export async function createDealRoomFromPortfolio(
   if (!insertError && !inserted?.id) {
     const recoveredId = await fetchDealRoomIdForPair(supabase, companyId, assetId, mandateId);
     if (recoveredId) {
+      const dealErr = await ensureDealForRoom(supabase, companyId, recoveredId, assetId, mandateId);
+      if (dealErr) return { ok: false, error: "Could not create deal for this room. Try again." };
       return { ok: true, dealRoomId: recoveredId };
     }
   }

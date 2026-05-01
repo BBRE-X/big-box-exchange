@@ -7,7 +7,7 @@ function AddDealSubmit({ className }: { className: string }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className={className}>
-      {pending ? "Adding…" : "Add deal"}
+      {pending ? "Adding…" : "Add external deal"}
     </button>
   );
 }

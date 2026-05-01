@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
+import { getActiveCompanyId } from "@/lib/app-context";
 
 type SearchArea = {
   label?: string | null;
@@ -45,18 +46,9 @@ export default async function NewMandatePage({
     redirect("/auth");
   }
 
-  const { data: activeMembership, error: membershipError } = await supabase
-    .from("memberships")
-    .select("company_id")
-    .eq("user_id", user.id)
-    .eq("is_active", true)
-    .maybeSingle();
+  const activeCompanyId = await getActiveCompanyId(user.id);
 
-  if (membershipError) {
-    console.error("Failed to load active membership:", membershipError);
-  }
-
-  if (!activeMembership?.company_id) {
+  if (!activeCompanyId) {
     redirect("/companies");
   }
 
@@ -67,7 +59,7 @@ export default async function NewMandatePage({
       .from("mandates")
       .select("*")
       .eq("id", mandateId)
-      .eq("company_id", activeMembership.company_id)
+      .eq("company_id", activeCompanyId)
       .maybeSingle();
 
     if (mandateError) {
@@ -94,14 +86,9 @@ export default async function NewMandatePage({
       redirect("/auth");
     }
 
-    const { data: activeMembership } = await supabase
-      .from("memberships")
-      .select("company_id")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .maybeSingle();
+    const actionCompanyId = await getActiveCompanyId(user.id);
 
-    if (!activeMembership?.company_id) {
+    if (!actionCompanyId) {
       redirect("/companies");
     }
 
@@ -162,7 +149,7 @@ export default async function NewMandatePage({
         .from("mandates")
         .select("id")
         .eq("id", formMandateId)
-        .eq("company_id", activeMembership.company_id)
+        .eq("company_id", actionCompanyId)
         .maybeSingle();
 
       if (!existingMandate) {
@@ -173,7 +160,7 @@ export default async function NewMandatePage({
         .from("mandates")
         .update(payload)
         .eq("id", formMandateId)
-        .eq("company_id", activeMembership.company_id)
+        .eq("company_id", actionCompanyId)
         .select("id")
         .single();
 
@@ -194,7 +181,7 @@ export default async function NewMandatePage({
     const { data: createdMandate, error } = await supabase
       .from("mandates")
       .insert({
-        company_id: activeMembership.company_id,
+        company_id: actionCompanyId,
         ...payload,
       })
       .select("id")
