@@ -100,44 +100,50 @@ export function DealNotes({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900">Notes</h2>
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h2 className="text-sm font-semibold text-gray-900">Internal notes</h2>
+      <p className="mt-0.5 text-xs text-gray-500">Visible only to your company.</p>
 
-      <form onSubmit={handleSubmit} className="mb-6">
+      <form onSubmit={handleSubmit} className="mt-4">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Add a note..."
-          className="w-full resize-none rounded-lg border border-gray-300 p-3 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+          placeholder="Add a note…"
+          className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-400 focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:opacity-50"
           rows={3}
           disabled={isPending}
         />
-        <button
-          type="submit"
-          disabled={isPending || !body.trim()}
-          className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isPending ? "Adding..." : "Add note"}
-        </button>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="submit"
+            disabled={isPending || !body.trim()}
+            className="inline-flex items-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPending ? "Adding…" : "Add note"}
+          </button>
+        </div>
       </form>
 
-      <div className="space-y-4">
+      <div className="mt-5 space-y-3">
         {notes.length === 0 ? (
-          <p className="text-sm text-gray-500">No notes yet.</p>
+          <p className="text-xs text-gray-400">No notes yet.</p>
         ) : (
           notes.map((note) => (
-            <div key={note.id} className="border-l-4 border-blue-500 py-2 pl-4">
-              <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-medium text-gray-800">
+            <div
+              key={note.id}
+              className="rounded-lg border border-gray-100 bg-gray-50 p-3.5 shadow-sm"
+            >
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-medium text-gray-700">
                   {formatAuthor(note, currentUserDisplayName)}
                 </p>
-
-                <p className="text-xs text-gray-500">
+                <p className="text-[11px] text-gray-400">
                   {formatNoteTimestamp(note.created_at)}
                 </p>
               </div>
-
-              <p className="whitespace-pre-wrap text-gray-900">{note.body}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                {note.body}
+              </p>
             </div>
           ))
         )}
