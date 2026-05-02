@@ -254,9 +254,9 @@ export default async function DealRecordPage({ params }: PageProps) {
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center">
         {/* Asset context — primary card */}
-        <div className="rounded-xl border border-gray-300 bg-white p-5 shadow-md">
+        <div className="flex-1 rounded-xl border border-gray-300 bg-white p-5 shadow-md">
           <p className="text-xs font-medium text-gray-500">Asset</p>
           {asset ? (
             <>
@@ -295,8 +295,14 @@ export default async function DealRecordPage({ params }: PageProps) {
           )}
         </div>
 
+        {/* Directional indicator */}
+        <div className="flex shrink-0 items-center justify-center opacity-70" aria-hidden>
+          <span className="text-xl text-gray-400 sm:hidden">↓</span>
+          <span className="hidden text-xl text-gray-400 sm:block">→</span>
+        </div>
+
         {/* Mandate context — secondary card */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-medium text-gray-500">Mandate</p>
           {mandate ? (
             <>
