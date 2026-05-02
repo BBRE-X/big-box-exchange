@@ -221,20 +221,12 @@ export default async function DealRoomsPage() {
                         {formatUpdatedAt(deal.updated_at)}
                       </p>
 
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/deal-rooms/${deal.deal_room_id}`}
-                          className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-900 shadow-sm transition hover:border-gray-400 hover:bg-gray-50"
-                        >
-                          View room
-                        </Link>
-                        <Link
-                          href={`/deal-rooms/${deal.deal_room_id}/deals/${deal.id}`}
-                          className="inline-flex items-center rounded-lg border border-gray-900 bg-gray-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-gray-800"
-                        >
-                          View deal
-                        </Link>
-                      </div>
+                      <Link
+                        href={`/deal-rooms/${deal.deal_room_id}/deals/${deal.id}`}
+                        className="inline-flex items-center rounded-lg border border-gray-900 bg-gray-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-gray-800"
+                      >
+                        View deal
+                      </Link>
                     </div>
                   </article>
                 </li>
