@@ -5,6 +5,7 @@ export type ActivityRow = {
   action_type: string;
   from_stage: string | null;
   to_stage: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
   user_id: string | null;
   authorEmail: string | null;
@@ -34,6 +35,20 @@ function ActivityLine({ activity }: { activity: ActivityRow }) {
       </span>
     );
   }
+
+  if (activity.action_type === "note_added") {
+    const preview =
+      typeof activity.metadata?.preview === "string" ? activity.metadata.preview : null;
+    return (
+      <span>
+        <span className="font-medium text-gray-800">Note added</span>
+        {preview ? (
+          <span className="ml-1 text-gray-500">· {preview}</span>
+        ) : null}
+      </span>
+    );
+  }
+
   return <span>{activity.action_type}</span>;
 }
 

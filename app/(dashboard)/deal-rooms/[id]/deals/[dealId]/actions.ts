@@ -176,7 +176,21 @@ export async function addDealNote(
     };
   }
 
-  // Revalidate the deal page to refresh UI
+  // Record activity — non-blocking
+  const { error: activityError } = await supabase
+    .from("deal_activities")
+    .insert({
+      deal_id: dealId,
+      company_id: companyId,
+      user_id: user.id,
+      action_type: "note_added",
+      metadata: { preview: trimmedBody.slice(0, 80) },
+    });
+
+  if (activityError) {
+    console.error("[deal_activities insert note_added]", activityError);
+  }
+
   revalidatePath(`/deal-rooms/${dealRoomId}/deals/${dealId}`);
 
   return { ok: true };

@@ -210,7 +210,7 @@ export default async function DealRecordPage({ params }: PageProps) {
         .eq("company_id", companyId),
       supabase
         .from("deal_activities")
-        .select("id, action_type, from_stage, to_stage, created_at, user_id")
+        .select("id, action_type, from_stage, to_stage, metadata, created_at, user_id")
         .eq("deal_id", dealId)
         .eq("company_id", companyId)
         .order("created_at", { ascending: false })
