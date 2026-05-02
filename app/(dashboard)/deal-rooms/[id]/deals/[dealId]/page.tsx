@@ -4,6 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { getActiveCompanyRecord } from "@/lib/app-context";
 import { DealStageSelector } from "./DealStageSelector";
 import { DealNotes } from "./DealNotes";
+import { DealActivity, type ActivityRow } from "./DealActivity";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -201,10 +202,20 @@ export default async function DealRecordPage({ params }: PageProps) {
     console.error("[DealRecordPage] Failed to load notes:", notesError);
   }
 
-  const { data: membershipsRaw, error: membershipsError } = await supabase
-    .from("memberships")
-    .select("user_id, role")
-    .eq("company_id", companyId);
+  const [{ data: membershipsRaw, error: membershipsError }, { data: activitiesRaw }] =
+    await Promise.all([
+      supabase
+        .from("memberships")
+        .select("user_id, role")
+        .eq("company_id", companyId),
+      supabase
+        .from("deal_activities")
+        .select("id, action_type, from_stage, to_stage, created_at, user_id")
+        .eq("deal_id", dealId)
+        .eq("company_id", companyId)
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
 
   if (membershipsError) {
     console.error("[DealRecordPage] Failed to load memberships:", membershipsError);
@@ -225,6 +236,11 @@ export default async function DealRecordPage({ params }: PageProps) {
       isCurrentUser: note.created_by === user.id,
     };
   });
+
+  const activities: ActivityRow[] = ((activitiesRaw ?? []) as ActivityRow[]).map((a) => ({
+    ...a,
+    authorEmail: a.user_id === user.id ? user.email ?? null : null,
+  }));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -351,6 +367,7 @@ export default async function DealRecordPage({ params }: PageProps) {
           dealRoomId={dealRoomId}
           currentStage={row.stage}
         />
+        <DealActivity activities={activities.slice(0, 3)} compact />
       </div>
 
       <dl className="mt-8 space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">

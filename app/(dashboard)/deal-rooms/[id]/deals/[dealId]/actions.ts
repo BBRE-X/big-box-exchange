@@ -55,10 +55,10 @@ export async function updateDealStage(
 
   const companyId = companyRecord.id;
 
-  // Verify deal exists, belongs to this room and company
+  // Verify deal exists and capture current stage for activity log
   const { data: deal, error: fetchError } = await supabase
     .from("deals")
-    .select("id, deal_room_id, company_id")
+    .select("id, deal_room_id, company_id, stage")
     .eq("id", dealId)
     .eq("deal_room_id", dealRoomId)
     .eq("company_id", companyId)
@@ -67,6 +67,8 @@ export async function updateDealStage(
   if (fetchError || !deal) {
     return { ok: false, error: "Deal not found." };
   }
+
+  const fromStage = deal.stage;
 
   // Update the deal stage
   const { error: updateError } = await supabase
@@ -79,7 +81,23 @@ export async function updateDealStage(
     return { ok: false, error: "Failed to update stage." };
   }
 
-  // Revalidate the deal room page to refresh UI
+  // Record activity — non-blocking: log error but don't fail the stage update
+  const { error: activityError } = await supabase
+    .from("deal_activities")
+    .insert({
+      deal_id: dealId,
+      company_id: companyId,
+      user_id: user.id,
+      action_type: "stage_changed",
+      from_stage: fromStage,
+      to_stage: newStage,
+    });
+
+  if (activityError) {
+    console.error("[deal_activities insert]", activityError);
+  }
+
+  revalidatePath(`/deal-rooms/${dealRoomId}/deals/${dealId}`);
   revalidatePath(`/deal-rooms/${dealRoomId}`);
 
   return { ok: true, newStage };
